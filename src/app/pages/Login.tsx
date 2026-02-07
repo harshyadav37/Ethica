@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Shield, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { login } from '../api/auth';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -12,14 +13,29 @@ interface LoginProps {
 
 export default function Login({ onNavigate, onLogin }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+    setError(null);
+    try {
+      setLoading(true);
+      const data = await login({ email: formData.email, password: formData.password });
+      setLoading(false);
+      try {
+        if (data?.token) localStorage.setItem('token', data.token);
+        if (data?.user) localStorage.setItem('user', JSON.stringify(data.user));
+      } catch {}
+      onLogin();
+    } catch (err: any) {
+      setLoading(false);
+      setError(err?.message || 'Login failed');
+    }
   };
 
   return (
@@ -99,13 +115,14 @@ export default function Login({ onNavigate, onLogin }: LoginProps) {
               </div>
             </div>
 
+            {error && <div className="text-sm text-red-400">{error}</div>}
             <Button
               type="submit"
               className="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0"
               size="lg"
-              disabled={!formData.email || !formData.password}
+              disabled={!formData.email || !formData.password || loading}
             >
-              Sign In
+              {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
 

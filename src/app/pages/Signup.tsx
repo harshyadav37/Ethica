@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
+import { signup } from '../api/auth';
 import { Shield, ArrowLeft, Check, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -14,12 +15,20 @@ interface SignupProps {
 export default function Signup({ onNavigate, onSignup }: SignupProps) {
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     username: '',
     password: '',
     agreedToTerms: false,
   });
+
+  // Local API wrapper
+  // import moved inside file to avoid top-level changes during patching
+  // eslint-disable-next-line import/no-extraneous-dependencies
+  // actual function imported below via relative path
+  
 
   const privacyPromises = [
     'We will never sell your data',
@@ -29,12 +38,27 @@ export default function Signup({ onNavigate, onSignup }: SignupProps) {
     'You own your content, always',
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     if (step < 3) {
       setStep(step + 1);
-    } else {
+      return;
+    }
+
+    // final submit
+    try {
+      setLoading(true);
+      await signup({
+        name: formData.username,
+        email: formData.email,
+        password: formData.password,
+      });
+      setLoading(false);
       onSignup();
+    } catch (err: any) {
+      setLoading(false);
+      setError(err?.message || 'Signup failed');
     }
   };
 
@@ -241,13 +265,14 @@ export default function Signup({ onNavigate, onSignup }: SignupProps) {
                   </div>
                 </div>
 
+                {error && <div className="text-sm text-red-400 mb-2">{error}</div>}
                 <Button
                   type="submit"
                   className="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0"
                   size="lg"
-                  disabled={!formData.agreedToTerms}
+                  disabled={!formData.agreedToTerms || loading}
                 >
-                  Create My Account
+                  {loading ? 'Creating...' : 'Create My Account'}
                 </Button>
               </>
             )}
