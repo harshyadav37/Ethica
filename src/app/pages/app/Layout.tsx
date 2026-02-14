@@ -68,7 +68,7 @@ export default function Layout({ onLogout }: LayoutProps) {
     setCurrentPage(page);
     setMobileMenuOpen(false);
   };
-
+   const user = JSON.parse(localStorage.getItem("user"));
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
       {/* Desktop Sidebar */}
@@ -162,8 +162,16 @@ export default function Layout({ onLogout }: LayoutProps) {
             </Avatar>
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="truncate">Jane Doe</p>
-                <p className="text-xs text-gray-400 truncate">@janedoe</p>
+                
+                  {user ? (
+        <span> 
+        {/* <p className="truncate">{user.name} </p> */}
+                <p className="text-xs text-gray-400 truncate">{user.email}</p>
+        </span>
+       
+      ) : (
+        <span></span>
+      )}
               </div>
             )}
           </div>
