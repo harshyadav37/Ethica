@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Home,
@@ -14,7 +14,8 @@ import {
   LogOut,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
-import { Avatar, AvatarFallback } from '../../components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
+import { useAuth } from '../../context/AuthContext.tsx';
 import Feed from './Feed';
 import Communities from './Communities';
 import Messages from './Messages';
@@ -30,9 +31,19 @@ interface LayoutProps {
 type Page = 'feed' | 'communities' | 'messages' | 'videocalls' | 'forums' | 'privacy' | 'profile';
 
 export default function Layout({ onLogout }: LayoutProps) {
-  const [currentPage, setCurrentPage] = useState<Page>('feed');
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    return (localStorage.getItem('ethica-currentPage') as Page) || 'feed';
+  });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user } = useAuth();
+
+  const getInitials = (name?: string) => {
+    const parts = (name || '').trim().split(' ').filter(Boolean);
+    if (!parts.length) return 'JD';
+    const [first, second] = parts;
+    return (first[0] + (second?.[0] ?? '')).toUpperCase();
+  };
 
   const navigation = [
     { id: 'feed' as Page, label: 'Feed', icon: Home },
@@ -68,7 +79,11 @@ export default function Layout({ onLogout }: LayoutProps) {
     setCurrentPage(page);
     setMobileMenuOpen(false);
   };
-   const user = JSON.parse(localStorage.getItem("user"));
+
+  useEffect(() => {
+    localStorage.setItem('ethica-currentPage', currentPage);
+  }, [currentPage]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
       {/* Desktop Sidebar */}
@@ -156,22 +171,21 @@ export default function Layout({ onLogout }: LayoutProps) {
             } ${currentPage === 'profile' ? 'bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 border border-violet-500/30' : ''}`}
           >
             <Avatar className="w-10 h-10">
-              <AvatarFallback className="bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
-                JD
-              </AvatarFallback>
+              {user?.profileImage ? (
+                <AvatarImage src={user.profileImage} alt={user.name || 'User'} />
+              ) : (
+                <AvatarFallback className="bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                  {getInitials(user?.name)}
+                </AvatarFallback>
+              )}
             </Avatar>
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0">
-                
-                  {user ? (
-        <span> 
-        {/* <p className="truncate">{user.name} </p> */}
-                <p className="text-xs text-gray-400 truncate">{user.email}</p>
-        </span>
-       
-      ) : (
-        <span></span>
-      )}
+                {user ? (
+                  <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                ) : (
+                  <p className="text-xs text-gray-400 truncate">Logged out</p>
+                )}
               </div>
             )}
           </div>
@@ -265,13 +279,17 @@ export default function Layout({ onLogout }: LayoutProps) {
               <div className="p-4 border-t border-white/10 space-y-3">
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
                   <Avatar className="w-10 h-10">
-                    <AvatarFallback className="bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
-                      JD
-                    </AvatarFallback>
+                    {user?.profileImage ? (
+                      <AvatarImage src={user.profileImage} alt={user.name || 'User'} />
+                    ) : (
+                      <AvatarFallback className="bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                        {getInitials(user?.name)}
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="truncate">Jane Doe</p>
-                    <p className="text-xs text-gray-400 truncate">@janedoe</p>
+                    <p className="truncate">{user?.name || 'Jane Doe'}</p>
+                    <p className="text-xs text-gray-400 truncate">{user?.email ? `@${user.email.split('@')[0]}` : '@janedoe'}</p>
                   </div>
                 </div>
 

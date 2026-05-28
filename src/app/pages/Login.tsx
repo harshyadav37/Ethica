@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Shield, ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import { login } from '../api/auth';
+import { login as loginApi } from '../api/auth';
+import { useAuth } from '../context/AuthContext.tsx';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -19,18 +20,20 @@ export default function Login({ onNavigate, onLogin }: LoginProps) {
     email: '',
     password: '',
   });
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
       setLoading(true);
-      const data = await login({ email: formData.email, password: formData.password });
+      const data = await loginApi({ email: formData.email, password: formData.password });
       setLoading(false);
-      try {
-        if (data?.token) localStorage.setItem('token', data.token);
-        if (data?.user) localStorage.setItem('user', JSON.stringify(data.user));
-      } catch {}
+
+      if (data?.token && data?.user) {
+        login({ token: data.token, user: data.user });
+      }
+
       onLogin();
     } catch (err: any) {
       setLoading(false);

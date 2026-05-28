@@ -28,6 +28,7 @@ import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Separator } from '../../components/ui/separator';
 import { getUserProfile, updateUserProfile } from '../../api/auth';
+import { useAuth } from '../../context/AuthContext.tsx';
 import { toast } from 'react-hot-toast';
 
 type ProfileData = {
@@ -49,6 +50,7 @@ type ProfileData = {
 };
 
 export default function Profile() {
+  const { user, token, login } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -77,6 +79,17 @@ export default function Profile() {
         }
         
         setProfile(profileData);
+        if (token && user) {
+          login({
+            token,
+            user: {
+              ...user,
+              profileImage: profileData.profileImage ?? user.profileImage,
+              name: profileData.fullName || user.name,
+              email: profileData.email || user.email,
+            },
+          });
+        }
         setError(null);
       } catch (err: any) {
         setError(err.message || "Failed to load profile");
@@ -233,8 +246,8 @@ export default function Profile() {
         skills: editData.skills || [],
       };
 
-      // Call the update API
-      const updatedProfile = await updateUserProfile(profile._id, updatePayload);
+      // Call the update API (backend uses JWT to identify user)
+      const updatedProfile = await updateUserProfile(updatePayload);
       
       // Update the local state with the response
       if (updatedProfile) {
@@ -243,6 +256,17 @@ export default function Profile() {
           updatedProfile.dateOfBirth = new Date(updatedProfile.dateOfBirth).toISOString().split('T')[0];
         }
         setProfile(updatedProfile);
+        if (token && user) {
+          login({
+            token,
+            user: {
+              ...user,
+              profileImage: updatedProfile.profileImage ?? user.profileImage,
+              name: updatedProfile.fullName || user.name,
+              email: updatedProfile.email || user.email,
+            },
+          });
+        }
         toast.success('Profile updated successfully!');
       }
       
@@ -255,8 +279,8 @@ export default function Profile() {
     }
   };
 
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(' ').filter(Boolean);
+  const getInitials = (name?: string) => {
+    const parts = (name || '').trim().split(' ').filter(Boolean);
     if (!parts.length) return 'U';
     const [first, second] = parts;
     return (first[0] + (second?.[0] ?? '')).toUpperCase();
@@ -398,7 +422,7 @@ export default function Profile() {
                 <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-6">
                   <div>
                     <div className="flex items-center gap-3 mb-2">
-                      <h1 className="text-3xl sm:text-4xl font-bold text-white">{profile.fullName}</h1>
+                      <h1 className="text-3xl sm:text-4xl font-bold text-white">{profile.fullName || 'User'}</h1>
                       <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30">
                         <Shield className="w-3 h-3 mr-1" />
                         Verified
@@ -517,12 +541,12 @@ export default function Profile() {
                   </div>
                 </div>
                 <Separator className="bg-white/10" />
-                <div className="flex items-start gap-3">
+                {/* <div className="flex items-start gap-3">
                   <Mail className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <div className="text-white">{profile.email || 'No email provided'}</div>
                   </div>
-                </div>
+                </div> */}
               </div>
             </motion.div>
 

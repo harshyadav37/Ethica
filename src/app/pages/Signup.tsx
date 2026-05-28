@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { signup } from '../api/auth';
+import { useAuth } from '../context/AuthContext.tsx';
 import { Shield, ArrowLeft, Check, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -23,6 +24,7 @@ export default function Signup({ onNavigate, onSignup }: SignupProps) {
     password: '',
     agreedToTerms: false,
   });
+  const { login } = useAuth();
 
   // Local API wrapper
   // import moved inside file to avoid top-level changes during patching
@@ -49,13 +51,19 @@ export default function Signup({ onNavigate, onSignup }: SignupProps) {
     // final submit
     try {
       setLoading(true);
-      await signup({
+      const data = await signup({
         name: formData.username,
         email: formData.email,
         password: formData.password,
       });
       setLoading(false);
-      onSignup();
+
+      if (data?.token && data?.user) {
+        login({ token: data.token, user: data.user });
+        onSignup();
+      } else {
+        onNavigate('login');
+      }
     } catch (err: any) {
       setLoading(false);
       setError(err?.message || 'Signup failed');

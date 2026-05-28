@@ -44,10 +44,6 @@ export async function login(payload: {
     throw new Error(data?.message || "Login failed");
   }
 
-  // ✅ Store token + user automatically
-  localStorage.setItem("token", data.token);
-  localStorage.setItem("user", JSON.stringify(data.user));
-
   return data;
 }
 
@@ -59,32 +55,67 @@ export const getUserProfile = async () => {
 
   if (!token) throw new Error("Not authenticated");
 
-  const response = await axios.get(
-    `${BASE_URL}/user/getUserProfile`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+  try {
+    const response = await axios.get(
+      `${BASE_URL}/api/user/getUserProfile`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error: any) {
+    // If profile not found, attempt to auto-create
+    if (error?.response?.status === 404 || error?.response?.data?.message === "Profile not found") {
+      try {
+        const createResponse = await axios.post(
+          `${BASE_URL}/api/user/createUserProfile`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        return createResponse.data;
+      } catch (createError) {
+        // Return empty profile structure if creation fails
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        return {
+          _id: "",
+          fullName: user.name || "User",
+          profileImage: null,
+          post: "",
+          location: "",
+          websiteUrl: "",
+          aboutMe: "",
+          dateOfBirth: "",
+          university: "",
+          degree: "",
+          educationYear: new Date().getFullYear(),
+          company: "",
+          position: "",
+          email: user.email || "",
+          skills: [],
+        };
+      }
     }
-  );
-
-  return response.data;
+    throw error;
+  }
 };
 
 // =======================
 // UPDATE USER PROFILE
 // =======================
-// If backend uses JWT (recommended), no need to pass userId
-export const updateUserProfile = async (
-  userId: string,
-  profileData: any
-) => {
+export const updateUserProfile = async (profileData: any) => {
   const token = localStorage.getItem("token");
 
   if (!token) throw new Error("No authentication token found");
 
   const response = await axios.put(
-    `${BASE_URL}/user/updateUserProfile/${userId}`,
+    `${BASE_URL}/api/user/updateUserProfile`,
     profileData,
     {
       headers: {
