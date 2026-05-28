@@ -277,7 +277,11 @@ export default function Layout({ onLogout }: LayoutProps) {
               </nav>
 
               <div className="p-4 border-t border-white/10 space-y-3">
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                <button
+                  type="button"
+                  onClick={() => handleNavigate('profile')}
+                  className="w-full text-left flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all"
+                >
                   <Avatar className="w-10 h-10">
                     {user?.profileImage ? (
                       <AvatarImage src={user.profileImage} alt={user.name || 'User'} />
@@ -291,7 +295,7 @@ export default function Layout({ onLogout }: LayoutProps) {
                     <p className="truncate">{user?.name || 'Jane Doe'}</p>
                     <p className="text-xs text-gray-400 truncate">{user?.email ? `@${user.email.split('@')[0]}` : '@janedoe'}</p>
                   </div>
-                </div>
+                </button>
 
                 <div className="flex gap-2">
                   <Button
