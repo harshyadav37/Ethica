@@ -1,3 +1,4 @@
+
 import axios from "axios";
 
 const BASE_URL = "https://ethica-backend.onrender.com";
@@ -10,16 +11,26 @@ export async function signup(payload: {
   email: string;
   password: string;
 }) {
+  console.debug('Signup request payload:', payload);
   const res = await fetch(`${BASE_URL}/api/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 
-  const data = await res.json().catch(() => ({}));
+  const text = await res.text();
+  let data: any = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { raw: text };
+  }
+
+  console.debug('Signup response status:', res.status, 'body:', data);
 
   if (!res.ok) {
-    throw new Error(data?.message || "Signup failed");
+    const errorMessage = data?.message || data?.error || data?.raw || `Signup failed (${res.status})`;
+    throw new Error(errorMessage);
   }
 
   return data;
