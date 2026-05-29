@@ -1,85 +1,74 @@
 import { motion } from 'motion/react';
+import { useMemo, useState } from 'react';
 import { Users, TrendingUp, Star, Plus, Search } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 
-export default function Communities() {
-  const communities = [
-    {
-      id: 1,
-      name: 'Sustainable Living',
-      description: 'Tips and discussions about eco-friendly lifestyle choices',
-      members: 12500,
-      posts: 1840,
-      category: 'Environment',
-      trending: true,
-      joined: true,
-    },
-    {
-      id: 2,
-      name: 'Digital Privacy',
-      description: 'Protecting your online presence and data',
-      members: 8900,
-      posts: 2100,
-      category: 'Technology',
-      trending: false,
-      joined: true,
-    },
-    {
-      id: 3,
-      name: 'Mental Health & Wellness',
-      description: 'Support and resources for mental wellbeing',
-      members: 15200,
-      posts: 3450,
-      category: 'Health',
-      trending: true,
-      joined: false,
-    },
-    {
-      id: 4,
-      name: 'Photography Enthusiasts',
-      description: 'Share your photos and learn from others',
-      members: 9800,
-      posts: 5600,
-      category: 'Arts',
-      trending: false,
-      joined: true,
-    },
-    {
-      id: 5,
-      name: 'Book Club',
-      description: 'Monthly book discussions and recommendations',
-      members: 6700,
-      posts: 890,
-      category: 'Literature',
-      trending: false,
-      joined: false,
-    },
-    {
-      id: 6,
-      name: 'Indie Game Developers',
-      description: 'Connect with game creators and share your projects',
-      members: 11200,
-      posts: 4200,
-      category: 'Gaming',
-      trending: true,
-      joined: false,
-    },
-  ];
+interface CommunitiesProps {
+  onNavigate?: (page: string) => void;
+  communities?: Array<{
+    id: number;
+    name: string;
+    description: string;
+    members: number;
+    posts: number;
+    postsData?: any[];
+    category: string;
+    trending: boolean;
+    joined: boolean;
+  }>;
+  joinCommunity?: (id: number) => void;
+  openCommunity?: (id: number) => void;
+}
+
+export default function Communities({ onNavigate, communities, joinCommunity, openCommunity }: CommunitiesProps) {
+  const [query, setQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'All' | 'Joined' | 'Trending' | 'Recommended'>('All');
+
+  const list = communities || [];
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let base = list.slice();
+
+    // Apply filter
+    if (activeFilter === 'Joined') base = base.filter((c) => c.joined);
+    else if (activeFilter === 'Trending') base = base.filter((c) => c.trending);
+    else if (activeFilter === 'Recommended') {
+      // Recommend communities not joined, prioritizing categories of joined communities or trending
+      const joinedCategories = new Set(list.filter((c) => c.joined).map((c) => c.category));
+      const recs = base.filter((c) => !c.joined).filter((c) => joinedCategories.has(c.category));
+      const fallback = base.filter((c) => !c.joined && c.trending);
+      base = recs.length ? recs : fallback;
+    }
+
+    // Apply search query
+    if (!q) return base;
+    return base.filter((c) => {
+      return (
+        c.name.toLowerCase().includes(q) ||
+        (c.description || '').toLowerCase().includes(q) ||
+        (c.category || '').toLowerCase().includes(q)
+      );
+    });
+  }, [list, query, activeFilter]);
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl mb-2">Communities</h1>
             <p className="text-gray-400">
               Connect with people who share your interests
             </p>
           </div>
-          <Button className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0">
+          <Button
+            className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0"
+            onClick={() => onNavigate?.('newcommunities')}
+          >
             <Plus className="w-5 h-5 mr-2" />
             Create Community
           </Button>
@@ -89,6 +78,8 @@ export default function Communities() {
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <Input
+            value={query}
+            onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
             placeholder="Search communities..."
             className="pl-12 bg-white/5 border-white/10 focus:border-violet-500 placeholder:text-gray-500"
           />
@@ -96,15 +87,16 @@ export default function Communities() {
 
         {/* Filter Tabs */}
         <div className="flex gap-2 overflow-x-auto pb-2">
-          {['All', 'Joined', 'Trending', 'Recommended'].map((filter) => (
+          {(['All', 'Joined', 'Trending', 'Recommended'] as const).map((filter) => (
             <Button
               key={filter}
-              variant={filter === 'All' ? 'default' : 'outline'}
+              variant={activeFilter === filter ? 'default' : 'outline'}
               className={
-                filter === 'All'
+                activeFilter === filter
                   ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 border-0'
                   : 'border-white/10 hover:bg-white/5'
               }
+              onClick={() => setActiveFilter(filter)}
             >
               {filter}
             </Button>
@@ -113,14 +105,23 @@ export default function Communities() {
 
         {/* Communities Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {communities.map((community, index) => (
+          {filtered.map((community, index) => (
             <motion.div
               key={community.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               whileHover={{ y: -4 }}
-              className="group relative"
+              className="group relative cursor-pointer"
+                onClick={() => {
+                  if (community.joined) {
+                    openCommunity?.(community.id);
+                  } else {
+                    // Ask user to join before viewing
+                    // You could replace this with a modal/toast later
+                    alert('Please join this community to view posts.');
+                  }
+                }}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all h-full flex flex-col">
@@ -159,6 +160,10 @@ export default function Communities() {
                         ? 'border-white/10 hover:bg-white/5'
                         : 'bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0'
                     }
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      joinCommunity?.(community.id);
+                    }}
                   >
                     {community.joined ? 'Joined' : 'Join'}
                   </Button>

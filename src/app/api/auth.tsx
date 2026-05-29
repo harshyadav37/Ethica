@@ -139,3 +139,24 @@ export const updateUserProfile = async (profileData: any) => {
   return response.data;
 };
 
+
+// ====================== Community APIs ======================
+
+export const createCommunity = async (communityData: any) => {
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("No authentication token found");
+  const response = await axios.post(
+    `${BASE_URL}/api/user/createCommunity`,
+    communityData,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response.data;
+  
+
+
+  };
