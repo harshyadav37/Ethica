@@ -49,7 +49,7 @@ type ProfileData = {
   skills: string[];
 };
 
-export default function Profile() {
+export default function Profile({ onNavigate }: { onNavigate?: (page: any) => void }) {
   const { user, token, login } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -59,12 +59,45 @@ export default function Profile() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [viewingOther, setViewingOther] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
   
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch profile data
   useEffect(() => {
+    // If a selected profile was passed via localStorage, use it instead of current user
+    try {
+      const raw = localStorage.getItem('ethica-selectedProfile');
+      if (raw) {
+        const sel = JSON.parse(raw as string);
+        const mapped: any = {
+          _id: sel.id ? String(sel.id) : 'external',
+          fullName: sel.name || sel.fullName || 'User',
+          profileImage: sel.avatar || sel.profileImage || null,
+          post: '',
+          location: '',
+          websiteUrl: '',
+          aboutMe: sel.bio || sel.aboutMe || '',
+          dateOfBirth: '',
+          university: '',
+          degree: '',
+          educationYear: 0,
+          company: '',
+          position: '',
+          email: '',
+          skills: sel.skills || [],
+        };
+        setProfile(mapped);
+        setViewingOther(true);
+        setIsFollowing(!!sel.followed);
+        setLoading(false);
+        return; // skip fetching current user profile
+      }
+    } catch (e) {
+      // ignore parse errors and fall back to fetching
+    }
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -101,6 +134,15 @@ export default function Profile() {
     };
 
     fetchData();
+  }, []);
+
+  // Clear selected profile once component unmounts
+  useEffect(() => {
+    return () => {
+      try {
+        localStorage.removeItem('ethica-selectedProfile');
+      } catch (e) {}
+    };
   }, []);
 
   // Handle click outside modal
@@ -432,13 +474,45 @@ export default function Profile() {
                       {profile.aboutMe || 'No bio provided'}
                     </p>
                   </div>
-                  <Button
-                    className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0 lg:mt-0"
-                    onClick={openEditModal}
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit Profile
-                  </Button>
+                      {viewingOther ? (
+                        <div className="flex gap-3">
+                          <Button
+                            className={`bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0 lg:mt-0 ${isFollowing ? 'opacity-80' : ''}`}
+                            onClick={() => {
+                              const next = !isFollowing;
+                              setIsFollowing(next);
+                              try {
+                                const key = 'ethica-following';
+                                const raw = localStorage.getItem(key);
+                                let arr: string[] = raw ? JSON.parse(raw) : [];
+                                const id = profile?._id ? String(profile._id) : '';
+                                if (!id) return;
+                                if (next) arr = Array.from(new Set([...arr, id]));
+                                else arr = arr.filter((x) => x !== id);
+                                localStorage.setItem(key, JSON.stringify(arr));
+                              } catch (e) {}
+                            }}
+                            size="sm"
+                          >
+                            {isFollowing ? 'Following' : 'Follow'}
+                          </Button>
+
+                          <Button size="sm" variant="outline" onClick={() => {
+                            try { localStorage.setItem('ethica-startConversation', JSON.stringify({ id: profile?._id, name: profile?.fullName })); } catch(e) {}
+                            onNavigate?.('messages');
+                          }}>
+                            Message
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0 lg:mt-0"
+                          onClick={openEditModal}
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Profile
+                        </Button>
+                      )}
                 </div>
 
                 {/* Quick Info Grid */}

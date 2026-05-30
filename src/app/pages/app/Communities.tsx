@@ -4,6 +4,8 @@ import { Users, TrendingUp, Star, Plus, Search } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
+import MemberList from './MemberList';
+import MemberProfile from './MemberProfile';
 
 interface CommunitiesProps {
   onNavigate?: (page: string) => void;
@@ -13,6 +15,7 @@ interface CommunitiesProps {
     description: string;
     members: number;
     posts: number;
+    membersData?: Array<{ id: number; name: string; avatar?: string; bio?: string; followed?: boolean }>;
     postsData?: any[];
     category: string;
     trending: boolean;
@@ -25,8 +28,43 @@ interface CommunitiesProps {
 export default function Communities({ onNavigate, communities, joinCommunity, openCommunity }: CommunitiesProps) {
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'All' | 'Joined' | 'Trending' | 'Recommended'>('All');
+  const [showMembers, setShowMembers] = useState(false);
+  const [activeMembers, setActiveMembers] = useState<any[] | null>(null);
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
 
   const list = communities || [];
+
+  const makeSampleMembers = (count: number, seed = 1) => {
+    const NAMES = [
+      'Alice Nguyen',
+      'Carlos Mendes',
+      'Priya Patel',
+      "Liam O'Connor",
+      'Sofia Rossi',
+      'Noah Kim',
+      'Emma Johnson',
+      'Oliver Wang',
+      'Maya Singh',
+      'Ethan Brown',
+      'Zara Ali',
+      'Hiro Tanaka',
+    ];
+    const avatars = [
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&q=60',
+      'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?w=200&q=60',
+      'https://images.unsplash.com/photo-1545996124-1f6a2e4b6f9b?w=200&q=60',
+      'https://images.unsplash.com/photo-1554151228-14d9def656e4?w=200&q=60',
+    ];
+
+    const out = [] as any[];
+    for (let i = 0; i < Math.max(0, count); i++) {
+      const idx = (i + seed) % NAMES.length;
+      out.push({ id: i + 1, name: NAMES[idx], avatar: avatars[i % avatars.length], bio: '', followed: false });
+      if (out.length >= 12) break;
+    }
+    return out;
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -143,7 +181,16 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
                 </p>
 
                 <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
-                  <span>{community.members.toLocaleString()} members</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMembers(community.membersData && community.membersData.length ? community.membersData : makeSampleMembers(Math.min(community.members || 0, 12), community.id));
+                      setShowMembers(true);
+                    }}
+                    className="text-left"
+                  >
+                    {community.members.toLocaleString()} members
+                  </button>
                   <span>•</span>
                   <span>{community.posts.toLocaleString()} posts</span>
                 </div>
@@ -208,6 +255,49 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
             </motion.div>
           </div>
         </div>
+        {/* Member list & profile dialogs */}
+        {activeMembers && (
+          <>
+            <MemberList
+              open={showMembers}
+              onOpenChange={(v: boolean) => {
+                setShowMembers(v);
+                if (!v) setActiveMembers(null);
+              }}
+              members={activeMembers}
+              onSelect={(m: any) => {
+                setSelectedMember(m);
+                setShowProfile(true);
+              }}
+              onViewProfile={(m: any) => {
+                // Persist selected profile for Profile page to read
+                try {
+                  localStorage.setItem('ethica-selectedProfile', JSON.stringify(m));
+                } catch (e) {}
+                setShowMembers(false);
+                onNavigate?.('profile');
+              }}
+            />
+
+            <MemberProfile
+              member={selectedMember}
+              open={showProfile}
+              onOpenChange={(v: boolean) => {
+                setShowProfile(v);
+                if (!v) setSelectedMember(null);
+              }}
+              onFollow={(id: number, follow: boolean) => {
+                // update local state for visual feedback
+                setActiveMembers((prev: any[] | null) => prev?.map((mm) => (mm.id === id ? { ...mm, followed: follow } : mm)) || prev);
+                setSelectedMember((s: any) => (s && s.id === id ? { ...s, followed: follow } : s));
+              }}
+              onMessage={(id: number) => {
+                onNavigate?.('messages');
+                // Optionally, you could route with the member id or open chat directly
+              }}
+            />
+          </>
+        )}
       </div>
     </div>
   );

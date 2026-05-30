@@ -467,7 +467,7 @@ export default function Layout({ onLogout }: LayoutProps) {
       case 'privacy':
         return <PrivacyDashboard />;
       case 'profile':
-        return <Profile />;
+        return <Profile onNavigate={handleNavigate as any} />;
       default:
         return <Feed />;
     }

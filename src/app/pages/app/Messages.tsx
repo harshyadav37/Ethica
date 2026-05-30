@@ -115,7 +115,7 @@ export default function Messages() {
                 key={conv.id}
                 onClick={() => setSelectedChat(conv.id)}
                 whileHover={{ x: 4 }}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
+                className={`w-[95%] flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
                   selectedChat === conv.id
                     ? 'bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 border border-violet-500/30'
                     : 'hover:bg-white/5'
