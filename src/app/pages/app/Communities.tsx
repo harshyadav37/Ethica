@@ -174,7 +174,7 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
                     </Badge>
                   )}
                 </div>
-
+      {/* name and description */}
                 <h3 className="text-xl mb-2">{community.name}</h3>
                 <p className="text-sm text-gray-400 mb-4 flex-1">
                   {community.description}
@@ -194,7 +194,7 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
                   <span>•</span>
                   <span>{community.posts.toLocaleString()} posts</span>
                 </div>
-
+{/* caterogory  */}
                 <div className="flex items-center justify-between">
                   <Badge variant="outline" className="border-white/10 text-gray-400">
                     {community.category}
