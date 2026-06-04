@@ -45,9 +45,9 @@ function CommunityDetail({
           <div className="flex gap-2">
             <Button variant="ghost" onClick={onBack}>Back</Button>
             {community.joined ? (
-              <Button variant="outline" onClick={() => leaveCommunity?.(community.id)}>Leave</Button>
+              <Button variant="outline" onClick={() => leaveCommunity?.(community)}>Leave</Button>
             ) : (
-              <Button onClick={() => joinCommunity?.(community.id)}>Join</Button>
+              <Button onClick={() => joinCommunity?.(community)}>Join</Button>
             )}
           </div>
         </div>

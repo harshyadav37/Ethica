@@ -13,7 +13,9 @@ import {
   ChevronRight,
   LogOut,
 } from 'lucide-react';
-import { joinCommunity as apiJoinCommunity } from '../../api/auth';
+
+import { joinCommunity as apiJoinCommunity, leaveCommunity as apiLeaveCommunity, getCommunities, createCommunity } from "../../api/auth";
+import { toast } from 'react-hot-toast';
 import { Button } from '../../components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -52,7 +54,8 @@ export default function Layout({ onLogout }: LayoutProps) {
   const [selectedCommunityId, setSelectedCommunityId] = useState<number | null>(null);
 
   type Community = {
-    id: number;
+     id?: number;
+  _id?: string;
     name: string;
     description: string;
     members: number;
@@ -62,213 +65,177 @@ export default function Layout({ onLogout }: LayoutProps) {
     joined: boolean;
     postsData?: any[];
   };
-
-  const defaultCommunities: Community[] = [
-    {
-      id: 1,
-      name: 'Sustainable Living',
-      description: 'Tips and discussions about eco-friendly lifestyle choices',
-      members: 12500,
-      posts: 1840,
-      postsData: [
-        {
-          id: 1,
-          author: 'alice@example.com',
-          content: 'We organized a beach cleanup this weekend! Here are some photos.',
-          image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=60',
-          likes: 42,
-          liked: false,
-          createdAt: new Date().toISOString(),
-          comments: [
-            { id: 1, author: 'bob@example.com', content: 'Amazing work!', createdAt: new Date().toISOString() },
-          ],
-        },
-      ],
-      category: 'Environment',
-      trending: true,
-      joined: true,
-    },
-    {
-      id: 2,
-      name: 'Digital Privacy',
-      description: 'Protecting your online presence and data',
-      members: 8900,
-      posts: 2100,
-      category: 'Technology',
-      trending: false,
-      joined: true,
-    },
-    {
-      id: 3,
-      name: 'Mental Health & Wellness',
-      description: 'Support and resources for mental wellbeing',
-      members: 15200,
-      posts: 3450,
-      category: 'Health',
-      trending: true,
-      joined: false,
-    },
-    {
-      id: 4,
-      name: 'Photography Enthusiasts',
-      description: 'Share your photos and learn from others',
-      members: 9800,
-      posts: 5600,
-      category: 'Arts',
-      trending: false,
-      joined: true,
-    },
-    {
-      id: 5,
-      name: 'Book Club',
-      description: 'Monthly book discussions and recommendations',
-      members: 6700,
-      posts: 890,
-      category: 'Literature',
-      trending: false,
-      joined: false,
-    },
-    {
-      id: 6,
-      name: 'Indie Game Developers',
-      description: 'Connect with game creators and share your projects',
-      members: 11200,
-      posts: 4200,
-      postsData: [
-        {
-          id: 1,
-          author: 'carol@example.com',
-          content: 'Released a new demo of my platformer — feedback welcome!',
-          image: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=800&q=60',
-          likes: 13,
-          liked: false,
-          createdAt: new Date().toISOString(),
-          comments: [],
-        },
-      ],
-      category: 'Gaming',
-      trending: true,
-      joined: false,
-    },
-  ];
+  // const defaultCommunities: Community[] = [
+  //   {
+  //     id: 1,
+  //     name: 'Sustainable Living',
+  //     description: 'Tips and discussions about eco-friendly lifestyle choices',
+  //     members: 12500,
+  //     posts: 1840,
+  //     postsData: [
+  //       {
+  //         id: 1,
+  //         author: 'alice@example.com',
+  //         content: 'We organized a beach cleanup this weekend! Here are some photos.',
+  //         image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=60',
+  //         likes: 42,
+  //         liked: false,
+  //         createdAt: new Date().toISOString(),
+  //         comments: [
+  //           { id: 1, author: 'bob@example.com', content: 'Amazing work!', createdAt: new Date().toISOString() },
+  //         ],
+  //       },
+  //     ],
+  //     category: 'Environment',
+  //     trending: true,
+  //     joined: true,
+  //   },
+  //   {
+  //     id: 2,
+  //     name: 'Digital Privacy',
+  //     description: 'Protecting your online presence and data',
+  //     members: 8900,
+  //     posts: 2100,
+  //     category: 'Technology',
+  //     trending: false,
+  //     joined: true,
+  //   },
+  //   {
+  //     id: 3,
+  //     name: 'Mental Health & Wellness',
+  //     description: 'Support and resources for mental wellbeing',
+  //     members: 15200,
+  //     posts: 3450,
+  //     category: 'Health',
+  //     trending: true,
+  //     joined: false,
+  //   },
+  //   {
+  //     id: 4,
+  //     name: 'Photography Enthusiasts',
+  //     description: 'Share your photos and learn from others',
+  //     members: 9800,
+  //     posts: 5600,
+  //     category: 'Arts',
+  //     trending: false,
+  //     joined: true,
+  //   },
+  //   {
+  //     id: 5,
+  //     name: 'Book Club',
+  //     description: 'Monthly book discussions and recommendations',
+  //     members: 6700,
+  //     posts: 890,
+  //     category: 'Literature',
+  //     trending: false,
+  //     joined: false,
+  //   },
+  //   {
+  //     id: 6,
+  //     name: 'Indie Game Developers',
+  //     description: 'Connect with game creators and share your projects',
+  //     members: 11200,
+  //     posts: 4200,
+  //     postsData: [
+  //       {
+  //         id: 1,
+  //         author: 'carol@example.com',
+  //         content: 'Released a new demo of my platformer — feedback welcome!',
+  //         image: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=800&q=60',
+  //         likes: 13,
+  //         liked: false,
+  //         createdAt: new Date().toISOString(),
+  //         comments: [],
+  //       },
+  //     ],
+  //     category: 'Gaming',
+  //     trending: true,
+  //     joined: false,
+  //   },
+  // ];
 
   const [communities, setCommunities] = useState<Community[]>(() => {
     try {
-      const raw = localStorage.getItem('ethica-communities');
-      return raw ? JSON.parse(raw) : defaultCommunities;
+      const stored = localStorage.getItem('ethica-communities');
+      if (stored) return JSON.parse(stored) as Community[];
     } catch (e) {
-      return defaultCommunities;
+      // ignore parse errors
     }
+    return defaultCommunities;
   });
 
-  // Seed sample posts across communities if missing (ensures at least 20 sample posts exist)
-  useEffect(() => {
-    const totalPosts = communities.reduce((acc, c) => acc + (c.postsData?.length || 0), 0);
-    if (totalPosts >= 20) return;
+useEffect(() => {
+  const fetchCommunities = async () => {
+    try {
+      const response = await getCommunities();
 
-    const SAMPLE_AUTHORS = [
-      { name: 'Alice Nguyen', avatar: 'https://images.unsplash.com/photo-1531123414780-fb6f3a7d0b7a?w=200&q=60' },
-      { name: 'Carlos Mendes', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&q=60' },
-      { name: 'Priya Patel', avatar: 'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?w=200&q=60' },
-      { name: 'Liam O’Connor', avatar: 'https://images.unsplash.com/photo-1547425260-1e1f8a432d0f?w=200&q=60' },
-      { name: 'Sofia Rossi', avatar: 'https://images.unsplash.com/photo-1545996124-1f6a2e4b6f9b?w=200&q=60' },
-      { name: 'Noah Kim', avatar: 'https://images.unsplash.com/photo-1544006659-f0b21884ce1d?w=200&q=60' },
-      { name: 'Emma Johnson', avatar: 'https://images.unsplash.com/photo-1545996124-1f6a2e4b6f9b?w=200&q=60' },
-      { name: 'Oliver Wang', avatar: 'https://images.unsplash.com/photo-1554151228-14d9def656e4?w=200&q=60' },
-      { name: 'Maya Singh', avatar: 'https://images.unsplash.com/photo-1545996124-1f6a2e4b6f9b?w=200&q=60' },
-      { name: 'Ethan Brown', avatar: 'https://images.unsplash.com/photo-1541745537418-0b9a7f2a1c9b?w=200&q=60' },
-    ];
-
-    const SAMPLE_IMAGES = [
-      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=60',
-      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1200&q=60',
-      'https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?w=1200&q=60',
-      'https://images.unsplash.com/photo-1504198453319-5ce911bafcde?w=1200&q=60',
-      'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=1200&q=60',
-      'https://images.unsplash.com/photo-1491933382704-9f3c26c5f0f9?w=1200&q=60',
-      'https://images.unsplash.com/photo-1508921912186-1d1a45ebb3c1?w=1200&q=60',
-      'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&q=60',
-      'https://images.unsplash.com/photo-1526403224743-5f3f6b8b2a2b?w=1200&q=60',
-      'https://images.unsplash.com/photo-1485217988980-11786ced9454?w=1200&q=60',
-    ];
-
-    const SAMPLE_CAPTIONS = [
-      'Just finished redesigning my portfolio homepage. Feedback welcome!',
-      'My first React project is finally deployed.',
-      'Captured this sunrise during my morning hike.',
-      'Completed a 30-day fitness challenge.',
-      'Sharing some UI concepts for a music streaming app.',
-      'Built a Node.js API with authentication today.',
-      'Experimenting with long exposure photography — thoughts?',
-      "Here's a quick recipe I tried last night, super tasty!",
-      'Sketching new iconography for a client project.',
-      'Refactored the auth flow — fewer bugs now!',
-      'Weekend trip — these shots from the coast are amazing.',
-      'A minimal CSS trick that saved my layout.',
-      'Proof-of-concept: real-time comments with WebSockets.',
-      'Before/after: my workspace setup upgrade.',
-      'Design critique: what would you improve here?',
-      'Sharing my workflow for fast prototyping.',
-      'Tiny animation trick with CSS transforms.',
-      'Just shipped a small but useful npm package.',
-      'Trying a new 35mm lens — color tones are lovely.',
-      'Mindful breathing helped me ship that feature today.',
-    ];
-
-    // build posts until we reach 20 total across communities
-    let postsToCreate = 20 - totalPosts;
-    const newCommunities = communities.map((c, ci) => ({ ...c }));
-    let authorIx = 0;
-    let imageIx = 0;
-    let captionIx = 0;
-
-    while (postsToCreate > 0) {
-      // pick a community to add to (round-robin)
-      const idx = postsToCreate % newCommunities.length;
-      const community = newCommunities[idx];
-      const postsData = community.postsData ? [...community.postsData] : [];
-      const author = SAMPLE_AUTHORS[authorIx % SAMPLE_AUTHORS.length];
-      const image = SAMPLE_IMAGES[imageIx % SAMPLE_IMAGES.length];
-      const caption = SAMPLE_CAPTIONS[captionIx % SAMPLE_CAPTIONS.length];
-
-      const comments: any[] = [];
-      // randomly add a few comments
-      const commentCount = Math.floor(Math.random() * 4);
-      for (let ci2 = 0; ci2 < commentCount; ci2++) {
-        comments.push({ id: ci2 + 1, author: SAMPLE_AUTHORS[(authorIx + ci2 + 1) % SAMPLE_AUTHORS.length].name, content: ['Nice!', 'Love this', 'Great work', 'Inspiring'][ci2 % 4], createdAt: new Date(Date.now() - 1000 * 60 * (ci2 + 10)).toISOString() });
-      }
-
-      const post = {
-        id: (postsData.length ? Math.max(...postsData.map((p: any) => p.id)) : 0) + 1,
-        author: author.name,
-        authorAvatar: author.avatar,
-        content: caption,
-        image,
-        likes: Math.floor(Math.random() * 120),
-        liked: false,
-        shares: Math.floor(Math.random() * 30),
-        createdAt: new Date(Date.now() - Math.floor(Math.random() * 1000 * 60 * 60 * 24 * 30)).toISOString(),
-        comments,
-        category: community.category || 'General',
-      };
-
-      postsData.unshift(post);
-      community.postsData = postsData;
-      community.posts = (community.posts || 0) + 1;
-
-      postsToCreate -= 1;
-      authorIx += 1;
-      imageIx += 1;
-      captionIx += 1;
-    }
-
-    setCommunities(() => {
+      // merge server data with any locally stored communities so we don't wipe joined/members
+      let stored: Community[] = [];
       try {
-        localStorage.setItem('ethica-communities', JSON.stringify(newCommunities));
+        const raw = localStorage.getItem('ethica-communities');
+        if (raw) stored = JSON.parse(raw) as Community[];
       } catch (e) {}
-      return newCommunities;
-    });
-  }, []); // run once on mount
+
+      const formattedCommunities = response.data.map((community: any, idx: number) => {
+        const existing = stored.find((s) => s._id === community._id || s.name === community.name);
+        return {
+          id: existing?.id ?? idx + 1,
+          _id: community._id,
+          name: community.name,
+          description: community.description,
+          category: community.category,
+          members: community.membersCount ?? existing?.members ?? 0,
+          posts: community.posts?.length ?? existing?.posts ?? 0,
+          joined: existing?.joined ?? false,
+          trending: community.trending ?? existing?.trending ?? false,
+          postsData: existing?.postsData ?? [],
+        } as Community;
+      });
+
+      setCommunities(formattedCommunities);
+      try { localStorage.setItem('ethica-communities', JSON.stringify(formattedCommunities)); } catch (e) {}
+    } catch (error) {
+      console.error("Fetch Communities Error:", error);
+    }
+  };
+
+  fetchCommunities();
+}, []);
+
+  // helper to refresh and merge communities from server (authoritative data)
+  const refreshCommunitiesFromServer = async () => {
+    try {
+      const response = await getCommunities();
+      let stored: Community[] = [];
+      try {
+        const raw = localStorage.getItem('ethica-communities');
+        if (raw) stored = JSON.parse(raw) as Community[];
+      } catch (e) {}
+
+      const formattedCommunities = response.data.map((community: any, idx: number) => {
+        const existing = stored.find((s) => s._id === community._id || s.name === community.name);
+        return {
+          id: existing?.id ?? idx + 1,
+          _id: community._id,
+          name: community.name,
+          description: community.description,
+          category: community.category,
+          members: community.membersCount ?? existing?.members ?? 0,
+          posts: community.posts?.length ?? existing?.posts ?? 0,
+          joined: existing?.joined ?? false,
+          trending: community.trending ?? existing?.trending ?? false,
+          postsData: existing?.postsData ?? [],
+        } as Community;
+      });
+
+      setCommunities(formattedCommunities);
+      try { localStorage.setItem('ethica-communities', JSON.stringify(formattedCommunities)); } catch (e) {}
+    } catch (err) {
+      console.error('Failed to refresh communities from server', err);
+    }
+  };
+
+ 
 
   const addCommunity = (data: { name: string; description?: string; category?: string }) => {
     setCommunities((prev) => {
@@ -298,6 +265,34 @@ export default function Layout({ onLogout }: LayoutProps) {
     setCurrentPage('community');
   };
 
+  // Accept number, string (_id or name), or community object and resolve to numeric id
+  const openCommunityResolved = (idOrCommunity: any) => {
+    let idToUse: number | null = null;
+    if (typeof idOrCommunity === 'number') {
+      idToUse = idOrCommunity;
+    } else if (typeof idOrCommunity === 'string') {
+      const found = communities.find(
+        (c) => c._id === idOrCommunity || c.name === idOrCommunity || (c.id?.toString() === idOrCommunity)
+      );
+      if (found) idToUse = found.id ?? null;
+      else if (!isNaN(Number(idOrCommunity))) idToUse = Number(idOrCommunity);
+    } else if (typeof idOrCommunity === 'object' && idOrCommunity !== null) {
+      idToUse = idOrCommunity.id ?? null;
+      if (!idToUse) {
+        const found = communities.find((c) => c._id === idOrCommunity._id || c.name === idOrCommunity.name);
+        if (found) idToUse = found.id ?? null;
+      }
+    }
+
+    if (idToUse != null) {
+      setSelectedCommunityId(idToUse);
+      setCurrentPage('community');
+    } else {
+      console.warn('Unable to resolve community id to open:', idOrCommunity);
+      toast.error('Unable to open community');
+    }
+  };
+
 
 
 
@@ -306,37 +301,89 @@ export default function Layout({ onLogout }: LayoutProps) {
 
 
   
-const joinCommunity = async (community: any) => {
+const joinCommunity = async (communityOrId: any) => {
   try {
-    const response = await apiJoinCommunity(community._id);
+    let community =
+      typeof communityOrId === 'number'
+        ? communities.find((c) => c.id === communityOrId)
+        : typeof communityOrId === 'string'
+        ? communities.find((c) => c._id === communityOrId || c.name === communityOrId)
+        : communityOrId;
 
-    setCommunities((prev) => {
-      const updated = prev.map((c) =>
-        c._id === community._id
-          ? {
-              ...c,
-              joined: true,
-              members: response.membersCount,
-            }
-          : c
-      );
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Please login to join communities');
+      console.error('No auth token found in localStorage');
+      return;
+    }
 
-      localStorage.setItem(
-        "ethica-communities",
-        JSON.stringify(updated)
-      );
+    // If community lacks a backend _id, create it first on the server
+    if ((!community || !community._id) && createCommunity) {
+      try {
+        const created = await createCommunity({
+          name: community?.name,
+          description: community?.description || '',
+          category: community?.category || 'General',
+        });
+        const newId = created?._id || created?.communityId || created?.id;
+        if (newId) {
+          // update local state to include new _id
+          setCommunities((prev) => {
+            const updated = prev.map((c) =>
+              c.name === community?.name
+                ? { ...c, _id: newId }
+                : c
+            );
+            try { localStorage.setItem('ethica-communities', JSON.stringify(updated)); } catch (e) {}
+            return updated;
+          });
+          // assign identifier so we can join next
+          community = { ...community, _id: newId };
+        }
+      } catch (err: any) {
+        console.error('Failed to create community before join', err);
+        toast.error(err?.response?.data?.message || err?.message || 'Failed to create community');
+        return;
+      }
+    }
 
-      return updated;
-    });
+    const identifier = community?._id ?? community?.name ?? communityOrId;
 
+    if (identifier && apiJoinCommunity) {
+      const response = await apiJoinCommunity(identifier);
+
+      // optimistic update
+      setCommunities((prev) => {
+        const updated = prev.map((c) =>
+          c._id === identifier || c.id === community?.id || c.name === identifier
+            ? { ...c, joined: true, members: response.totalMembers ?? (c.members || 0) + 1 }
+            : c
+        );
+        try {
+          localStorage.setItem('ethica-communities', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+
+      // refresh authoritative data from server
+      await refreshCommunitiesFromServer();
+    } else {
+      // fallback local update when identifier is missing
+      setCommunities((prev) => {
+        const updated = prev.map((c) =>
+          c.id === (community?.id ?? communityOrId) || c.name === community?.name
+            ? { ...c, joined: true, members: (c.members || 0) + 1 }
+            : c
+        );
+        try {
+          localStorage.setItem('ethica-communities', JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+    }
   } catch (err: any) {
-    console.error("Failed to join community", err);
-
-    alert(
-      err?.response?.data?.message ||
-      err?.message ||
-      "Failed to join community"
-    );
+    console.error('Failed to join community', err);
+    toast.error(err?.response?.data?.message || err?.message || 'Failed to join community');
   }
 };
 
@@ -429,16 +476,56 @@ const joinCommunity = async (community: any) => {
     });
   };
 
-  const leaveCommunity = (id: number) => {
-    setCommunities((prev) => {
-      const updated = prev.map((c) =>
-        c.id === id ? { ...c, joined: false, members: Math.max((c.members || 1) - 1, 0) } : c
-      );
-      try {
-        localStorage.setItem('ethica-communities', JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
+  const leaveCommunity = async (communityOrId: any) => {
+    try {
+      const community =
+        typeof communityOrId === 'number'
+          ? communities.find((c) => c.id === communityOrId)
+          : typeof communityOrId === 'string'
+          ? communities.find((c) => c._id === communityOrId || c.name === communityOrId)
+          : communityOrId;
+
+      const identifier = community?._id ?? community?.name ?? communityOrId;
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please login to leave communities');
+        console.error('No auth token found in localStorage');
+        return;
+      }
+
+      if (identifier && apiLeaveCommunity) {
+        const response = await apiLeaveCommunity(identifier);
+        setCommunities((prev) => {
+          const updated = prev.map((c) =>
+            c._id === identifier || c.id === community?.id || c.name === identifier
+              ? { ...c, joined: false, members: response.totalMembers ?? Math.max((c.members || 1) - 1, 0) }
+              : c
+          );
+          try {
+            localStorage.setItem('ethica-communities', JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
+        // refresh authoritative data from server
+        await refreshCommunitiesFromServer();
+      } else {
+        setCommunities((prev) => {
+          const updated = prev.map((c) =>
+            c.id === (community?.id ?? communityOrId) || c.name === community?.name
+              ? { ...c, joined: false, members: Math.max((c.members || 1) - 1, 0) }
+              : c
+          );
+          try {
+            localStorage.setItem('ethica-communities', JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
+      }
+    } catch (err: any) {
+      console.error('Failed to leave community', err);
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to leave community');
+    }
   };
 
   const getInitials = (name?: string) => {
@@ -467,7 +554,7 @@ const joinCommunity = async (community: any) => {
             onNavigate={handleNavigate as any}
             communities={communities}
             joinCommunity={joinCommunity}
-            openCommunity={openCommunity}
+            openCommunity={openCommunityResolved}
           />
         );
       case 'newcommunities':

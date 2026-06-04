@@ -3,6 +3,7 @@ import axios from "axios";
 
 const BASE_URL = "https://ethica-backend.onrender.com";
 
+// const BASE_URL = "http://localhost:3000";
 // =======================
 // SIGNUP
 // =======================
@@ -158,22 +159,57 @@ export const createCommunity = async (communityData: any) => {
   return response.data;
   };
 
+  // ====================== Get All Communities ======================
 
+ export const getCommunities = async () => {
+  const token = localStorage.getItem("token");
+
+  const response = await axios.get(
+    `${BASE_URL}/api/user/getCommunities`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return response.data;
+};
 
   // ======================join community ======================
 
-  export const joinCommunity = async (communityId: string) => {   
-    const token = localStorage.getItem("token");
-    if (!token) throw new Error("No authentication token found");
-    const response = await axios.post(
-      `${BASE_URL}/api/user/joinCommunity/${communityId}`,
-      { communityId },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-    return response.data;
-  }
+ export const joinCommunity = async (communityId:any) => {
+  const token = localStorage.getItem("token");
+
+  const response = await axios.post(
+    `${BASE_URL}/api/user/joinCommunity/${communityId}`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return response.data;
+};
+
+
+// ====================== Leave community ======================
+
+export const leaveCommunity = async (
+  communityId: string
+) => {
+  const token = localStorage.getItem("token");
+
+  const response = await axios.delete(
+    `${BASE_URL}/api/user/leaveCommunity/${communityId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return response.data;
+};

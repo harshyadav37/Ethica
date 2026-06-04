@@ -1,16 +1,19 @@
 import { motion } from 'motion/react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Users, TrendingUp, Star, Plus, Search } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import MemberList from './MemberList';
 import MemberProfile from './MemberProfile';
+import { joinCommunity as joinCommunityAPI } from '../../api/auth';
 
 interface CommunitiesProps {
   onNavigate?: (page: string) => void;
   communities?: Array<{
-    id: number;
+    id?: number;
+    _id?: string; // MongoDB ObjectId format
     name: string;
     description: string;
     members: number;
@@ -22,19 +25,27 @@ interface CommunitiesProps {
     joined: boolean;
   }>;
   joinCommunity?: (community: any) => void;
-  openCommunity?: (id: number) => void;
+  openCommunity?: (id: string) => void;
+  onCommunityJoin?: (communityId: string) => void;
 }
 
-
-export default function Communities({ onNavigate, communities, joinCommunity, openCommunity }: CommunitiesProps) {
+export default function Communities({ onNavigate, communities, joinCommunity, openCommunity, onCommunityJoin }: CommunitiesProps) {
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'All' | 'Joined' | 'Trending' | 'Recommended'>('All');
   const [showMembers, setShowMembers] = useState(false);
   const [activeMembers, setActiveMembers] = useState<any[] | null>(null);
   const [selectedMember, setSelectedMember] = useState<any | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [localCommunities, setLocalCommunities] = useState(communities || []);
 
-  const list = communities || [];
+  // Update local communities when prop changes
+  useEffect(() => {
+    if (communities) {
+      setLocalCommunities(communities);
+    }
+  }, [communities]);
 
   const makeSampleMembers = (count: number, seed = 1) => {
     const NAMES = [
@@ -67,16 +78,93 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
     return out;
   };
 
+  // Handle join community with API integration
+  const handleJoinCommunity = async (community: any) => {
+    // CRITICAL: Use the community's actual name from the database as the identifier
+    // This avoids sending local placeholder IDs like "local-17"
+    const idToUse = community.name;
+
+    console.log('Joining community with name:', idToUse);
+    console.log('Full community object:', community);
+    
+    try {
+      setLoading(idToUse);
+      setError(null);
+      
+      // Call the API
+      const response = await joinCommunityAPI(idToUse);
+      
+      console.log('Join API response:', response);
+      
+      // Update local state to show community as joined using the response's communityId
+      setLocalCommunities(prevCommunities => 
+        prevCommunities.map(c => {
+          // Check if this is the community we just joined
+          const isSameCommunity = 
+            c._id === response.communityId || 
+            c._id === idToUse ||
+            c.id?.toString() === idToUse ||
+            c.name === community.name;
+          
+          if (isSameCommunity) {
+            console.log('Updating community to joined:', c.name);
+            return { 
+              ...c, 
+              joined: true,
+              // Update _id if backend returned one and the community doesn't have it
+              _id: c._id || response.communityId
+            };
+          }
+          return c;
+        })
+      );
+      
+      // If you have a joinCommunity prop passed from parent, call it
+      if (joinCommunity) {
+        joinCommunity(community);
+      }
+      
+      // Optional callback for parent component
+      if (onCommunityJoin) {
+        onCommunityJoin(response.communityId);
+      }
+      
+      // Show success message
+      alert(`Successfully joined ${community.name}!`);
+      
+    } catch (err: any) {
+      console.error('Error joining community:', err);
+      console.error('Error response:', err.response);
+      
+      // Handle specific error cases
+      if (err.response?.status === 404) {
+        setError(`Community "${community.name}" not found. Please try again.`);
+      } else if (err.response?.status === 400) {
+        setError('You have already joined this community.');
+      } else if (err.response?.status === 401) {
+        setError('Please login to join communities.');
+      } else if (err.response?.status === 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        setError(err.message || 'Failed to join community. Please try again.');
+      }
+      
+      // Clear error after 3 seconds
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let base = list.slice();
+    let base = localCommunities.slice();
 
     // Apply filter
     if (activeFilter === 'Joined') base = base.filter((c) => c.joined);
     else if (activeFilter === 'Trending') base = base.filter((c) => c.trending);
     else if (activeFilter === 'Recommended') {
-      // Recommend communities not joined, prioritizing categories of joined communities or trending
-      const joinedCategories = new Set(list.filter((c) => c.joined).map((c) => c.category));
+      const joinedCategories = new Set(localCommunities.filter((c) => c.joined).map((c) => c.category));
       const recs = base.filter((c) => !c.joined).filter((c) => joinedCategories.has(c.category));
       const fallback = base.filter((c) => !c.joined && c.trending);
       base = recs.length ? recs : fallback;
@@ -91,13 +179,25 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
         (c.category || '').toLowerCase().includes(q)
       );
     });
-  }, [list, query, activeFilter]);
+  }, [localCommunities, query, activeFilter]);
+
+
+  const handleJoin = async (communityId :any) => {
+  console.log("Community ID:", communityId);
+
+  try {
+    const data = await joinCommunityAPI(communityId);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl mb-2">Communities</h1>
             <p className="text-gray-400">
@@ -112,6 +212,13 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
             Create Community
           </Button>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+            {error}
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative">
@@ -144,90 +251,116 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
 
         {/* Communities Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((community, index) => (
-            <motion.div
-              key={community.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ y: -4 }}
-              className="group relative cursor-pointer"
+          {filtered.map((community, index) => {
+            // Determine loading ID for this community
+            const loadingId = community._id || community.id?.toString() || community.name;
+            
+            return (
+              <motion.div
+                key={community._id || community.id || community.name}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ y: -4 }}
+                className="group relative cursor-pointer"
                 onClick={() => {
-                  if (community.joined) {
-                    openCommunity?.(community.id);
-                  } else {
-                    // Ask user to join before viewing
-                    // You could replace this with a modal/toast later
-                    alert('Please join this community to view posts.');
-                  }
-                }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all h-full flex flex-col">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center">
-                    <Users className="w-6 h-6 text-violet-400" />
+                    if (community.joined) {
+                      openCommunity?.(community._id || community.id?.toString() || community.name);
+                    } else {
+                      toast((t) => (
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">Please join this community to view posts.</div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                toast.dismiss(t.id);
+                                if (joinCommunity) {
+                                  joinCommunity(community);
+                                } else {
+                                  handleJoin(community._id || community.id || community.name);
+                                }
+                              }}
+                              className="px-3 py-1 bg-violet-500 text-white rounded-md"
+                            >
+                              Join
+                            </button>
+                          </div>
+                        </div>
+                      ), { duration: 6000 });
+                    }
+                  }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all h-full flex flex-col">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center">
+                      <Users className="w-6 h-6 text-violet-400" />
+                    </div>
+                    {community.trending && (
+                      <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                        <TrendingUp className="w-3 h-3 mr-1" />
+                        Trending
+                      </Badge>
+                    )}
                   </div>
-                  {community.trending && (
-                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-                      <TrendingUp className="w-3 h-3 mr-1" />
-                      Trending
+                  
+                  <h3 className="text-xl mb-2">{community.name}</h3>
+                  <p className="text-sm text-gray-400 mb-4 flex-1">
+                    {community.description}
+                  </p>
+
+                  <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveMembers(community.membersData && community.membersData.length ? community.membersData : makeSampleMembers(Math.min(community.members || 0, 12), community.id || index));
+                        setShowMembers(true);
+                      }}
+                      className="text-left hover:text-violet-400 transition-colors"
+                    >
+                      {community.members.toLocaleString()} members
+                    </button>
+                    <span>•</span>
+                    <span>{community.posts.toLocaleString()} posts</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="border-white/10 text-gray-400">
+                      {community.category}
                     </Badge>
-                  )}
+
+                    {/* Join button */}
+                    
+
+
+                    <Button
+                      className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (joinCommunity) {
+                          joinCommunity(community);
+                        } else {
+                          handleJoin(community._id || community.name || community.id);
+                        }
+                      }}
+                    >
+                      Join
+                    </Button>
+                  </div>
                 </div>
-      {/* name and description */}
-                <h3 className="text-xl mb-2">{community.name}</h3>
-                <p className="text-sm text-gray-400 mb-4 flex-1">
-                  {community.description}
-                </p>
-
-                <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveMembers(community.membersData && community.membersData.length ? community.membersData : makeSampleMembers(Math.min(community.members || 0, 12), community.id));
-                      setShowMembers(true);
-                    }}
-                    className="text-left"
-                  >
-                    {community.members.toLocaleString()} members
-                  </button>
-                  <span>•</span>
-                  <span>{community.posts.toLocaleString()} posts</span>
-                </div>
-{/* caterogory  */}
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="border-white/10 text-gray-400">
-                    {community.category}
-                  </Badge>
-
-
-
-
-
-
-
-                  {/* join */}
-                 <Button
-  size="sm"
-  variant={community.joined ? "outline" : "default"}
-  className={
-    community.joined
-      ? "border-white/10 hover:bg-white/5"
-      : "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0"
-  }
-  onClick={(e) => {
-    e.stopPropagation();
-    joinCommunity?.(community._id);
-  }}
->
-  {community.joined ? "Joined" : "Join"}
-</Button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
+
+        {/* No communities found */}
+        {filtered.length === 0 && (
+          <div className="text-center py-12">
+            <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <h3 className="text-xl text-gray-400 mb-2">No communities found</h3>
+            <p className="text-gray-500">Try adjusting your search or filters</p>
+          </div>
+        )}
 
         {/* Featured Communities */}
         <div className="mt-12">
@@ -264,6 +397,7 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
             </motion.div>
           </div>
         </div>
+        
         {/* Member list & profile dialogs */}
         {activeMembers && (
           <>
@@ -279,7 +413,6 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
                 setShowProfile(true);
               }}
               onViewProfile={(m: any) => {
-                // Persist selected profile for Profile page to read
                 try {
                   localStorage.setItem('ethica-selectedProfile', JSON.stringify(m));
                 } catch (e) {}
@@ -296,13 +429,11 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
                 if (!v) setSelectedMember(null);
               }}
               onFollow={(id: number, follow: boolean) => {
-                // update local state for visual feedback
                 setActiveMembers((prev: any[] | null) => prev?.map((mm) => (mm.id === id ? { ...mm, followed: follow } : mm)) || prev);
                 setSelectedMember((s: any) => (s && s.id === id ? { ...s, followed: follow } : s));
               }}
               onMessage={(id: number) => {
                 onNavigate?.('messages');
-                // Optionally, you could route with the member id or open chat directly
               }}
             />
           </>
