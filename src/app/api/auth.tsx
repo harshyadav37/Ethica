@@ -156,7 +156,24 @@ export const createCommunity = async (communityData: any) => {
     }
   );
   return response.data;
-  
-
-
   };
+
+
+
+  // ======================join community ======================
+
+  export const joinCommunity = async (communityId: string) => {   
+    const token = localStorage.getItem("token");
+    if (!token) throw new Error("No authentication token found");
+    const response = await axios.post(
+      `${BASE_URL}/api/user/joinCommunity/${communityId}`,
+      { communityId },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data;
+  }

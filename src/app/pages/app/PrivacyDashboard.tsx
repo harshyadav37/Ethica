@@ -7,17 +7,19 @@ import {
   Globe,
   Bell,
   Database,
-  Download,
   Trash2,
   Check,
   Info,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+import { LogOut, Download } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext.tsx';
 import { Switch } from '../../components/ui/switch';
 import { Label } from '../../components/ui/label';
 import { Badge } from '../../components/ui/badge';
 
 export default function PrivacyDashboard() {
+  const { logout } = useAuth();
   const [settings, setSettings] = useState({
     profileVisibility: true,
     activityStatus: false,
@@ -267,7 +269,7 @@ export default function PrivacyDashboard() {
             <div>
               <h3 className="text-xl mb-1">Your Data</h3>
               <p className="text-sm text-gray-400">
-                Download or delete your data at any time
+                  Delete your data at any time
               </p>
             </div>
           </div>
@@ -276,12 +278,13 @@ export default function PrivacyDashboard() {
             <Button
               variant="outline"
               className="border-white/10 hover:bg-white/5 justify-start h-auto py-4"
+              onClick={() => logout()}
             >
-              <Download className="w-5 h-5 mr-3" />
+              <LogOut className="w-5 h-5 mr-3" />
               <div className="text-left">
-                <div>Download Your Data</div>
+                <div>Logout</div>
                 <div className="text-xs text-gray-400 mt-1">
-                  Get a copy of everything you've shared
+                  Sign out of your account
                 </div>
               </div>
             </Button>

@@ -21,9 +21,10 @@ interface CommunitiesProps {
     trending: boolean;
     joined: boolean;
   }>;
-  joinCommunity?: (id: number) => void;
+  joinCommunity?: (community: any) => void;
   openCommunity?: (id: number) => void;
 }
+
 
 export default function Communities({ onNavigate, communities, joinCommunity, openCommunity }: CommunitiesProps) {
   const [query, setQuery] = useState('');
@@ -199,21 +200,29 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
                   <Badge variant="outline" className="border-white/10 text-gray-400">
                     {community.category}
                   </Badge>
-                  <Button
-                    size="sm"
-                    variant={community.joined ? 'outline' : 'default'}
-                    className={
-                      community.joined
-                        ? 'border-white/10 hover:bg-white/5'
-                        : 'bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0'
-                    }
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      joinCommunity?.(community.id);
-                    }}
-                  >
-                    {community.joined ? 'Joined' : 'Join'}
-                  </Button>
+
+
+
+
+
+
+
+                  {/* join */}
+                 <Button
+  size="sm"
+  variant={community.joined ? "outline" : "default"}
+  className={
+    community.joined
+      ? "border-white/10 hover:bg-white/5"
+      : "bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0"
+  }
+  onClick={(e) => {
+    e.stopPropagation();
+    joinCommunity?.(community._id);
+  }}
+>
+  {community.joined ? "Joined" : "Join"}
+</Button>
                 </div>
               </div>
             </motion.div>

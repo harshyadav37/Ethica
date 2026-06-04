@@ -13,6 +13,7 @@ import {
   ChevronRight,
   LogOut,
 } from 'lucide-react';
+import { joinCommunity as apiJoinCommunity } from '../../api/auth';
 import { Button } from '../../components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { useAuth } from '../../context/AuthContext.tsx';
@@ -297,17 +298,53 @@ export default function Layout({ onLogout }: LayoutProps) {
     setCurrentPage('community');
   };
 
-  const joinCommunity = (id: number) => {
+
+
+
+
+
+
+
+  
+const joinCommunity = async (community: any) => {
+  try {
+    const response = await apiJoinCommunity(community._id);
+
     setCommunities((prev) => {
       const updated = prev.map((c) =>
-        c.id === id ? { ...c, joined: true, members: (c.members || 0) + 1 } : c
+        c._id === community._id
+          ? {
+              ...c,
+              joined: true,
+              members: response.membersCount,
+            }
+          : c
       );
-      try {
-        localStorage.setItem('ethica-communities', JSON.stringify(updated));
-      } catch (e) {}
+
+      localStorage.setItem(
+        "ethica-communities",
+        JSON.stringify(updated)
+      );
+
       return updated;
     });
-  };
+
+  } catch (err: any) {
+    console.error("Failed to join community", err);
+
+    alert(
+      err?.response?.data?.message ||
+      err?.message ||
+      "Failed to join community"
+    );
+  }
+};
+
+
+
+
+
+
 
   const addPost = (communityId: number, content: string, image?: string, author = user?.email || 'You') => {
     setCommunities((prev) => {
@@ -588,19 +625,7 @@ export default function Layout({ onLogout }: LayoutProps) {
             )}
           </div>
 
-          <div className={`flex gap-2 mt-2 ${sidebarCollapsed ? 'flex-col' : ''}`}>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onLogout}
-              className={`hover:bg-red-500/10 hover:text-red-400 ${
-                sidebarCollapsed ? 'w-full' : 'flex-1'
-              }`}
-            >
-              <LogOut className="w-4 h-4" />
-              {!sidebarCollapsed && <span className="ml-2">Logout</span>}
-            </Button>
-          </div>
+          
         </div>
       </motion.aside>
 
