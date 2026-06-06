@@ -30,7 +30,7 @@ import { Separator } from '../../components/ui/separator';
 import { getUserProfile, updateUserProfile } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { toast } from 'react-hot-toast';
-import{ followUser ,getFollowers,getFollowing,unfollowUser } from '../../api/auth.tsx';
+import{ followUser ,getFollowers,getFollowing,unfollowUser, getFollowStatus } from '../../api/auth.tsx';
 
 type ProfileData = {
   _id: string;
@@ -67,6 +67,8 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
 const [following, setFollowing] = useState([]);
 const [followersCount, setFollowersCount] = useState(0);
 const [followingCount, setFollowingCount] = useState(0);
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
   
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,15 +80,22 @@ const [followingCount, setFollowingCount] = useState(0);
 const handleFollow = async () => {
   try {
     if (!profile) return;
-    await followUser(profile._id);
-    // refresh lists
-    await loadFollowLists(profile._id);
-    // refresh current user's following as well
-    await refreshMyFollowing();
+    // Optimistic UI update
+    setFollowersCount((prev) => prev + 1);
     setIsFollowing(true);
+    // also optimistically update current user's followingCount in auth
+    try { if (user) login({ token: token || '', user: { ...(user || {}), followingCount: (user.followingCount || 0) + 1 } }); } catch(e){}
+
+    const res = await followUser(profile._id);
+    // refresh accurate lists
+    await loadFollowLists(profile._id);
+    await refreshMyFollowing();
     toast.success('Followed successfully');
   } catch (error) {
     console.error(error);
+    // rollback optimistic update
+    setFollowersCount((prev) => Math.max(0, prev - 1));
+    setIsFollowing(false);
   }
 };
 
@@ -94,14 +103,20 @@ const handleFollow = async () => {
 const handleUnfollow = async () => {
   try {
     if (!profile) return;
+    // Optimistic UI update
+    setFollowersCount((prev) => Math.max(0, prev - 1));
+    setIsFollowing(false);
+    try { if (user) login({ token: token || '', user: { ...(user || {}), followingCount: Math.max(0, (user.followingCount || 0) - 1) } }); } catch(e){}
+
     await unfollowUser(profile._id);
     await loadFollowLists(profile._id);
-    // refresh current user's following as well
     await refreshMyFollowing();
-    setIsFollowing(false);
     toast.success('Unfollowed successfully');
   } catch (error) {
     console.error(error);
+    // rollback optimistic update
+    setFollowersCount((prev) => prev + 1);
+    setIsFollowing(true);
   }
 };
 
@@ -153,10 +168,24 @@ const loadFollowLists = async (userId: string) => {
     setFollowingCount(foList.length);
 
     // determine if current user is following this profile
-    const currentUserId = (user && (user._id || user.id)) || null;
-    if (currentUserId) {
-      const followingMe = fList.some((x: any) => x._id === currentUserId || x.id === currentUserId || x.userId === currentUserId);
-      setIsFollowing(followingMe);
+    // Prefer server-side follow-status if available, otherwise derive from followers list
+    try {
+      const currentUserId = (user && (user._id || user.id)) || null;
+      if (currentUserId) {
+        const status = await getFollowStatus(userId);
+        if (status && typeof status.isFollowing === 'boolean') {
+          setIsFollowing(status.isFollowing);
+        } else {
+          const followingMe = fList.some((x: any) => x._id === currentUserId || x.id === currentUserId || x.userId === currentUserId);
+          setIsFollowing(followingMe);
+        }
+      }
+    } catch (e) {
+      const currentUserId = (user && (user._id || user.id)) || null;
+      if (currentUserId) {
+        const followingMe = fList.some((x: any) => x._id === currentUserId || x.id === currentUserId || x.userId === currentUserId);
+        setIsFollowing(followingMe);
+      }
     }
   } catch (e) {
     console.error('Failed to load follow lists', e);
@@ -248,6 +277,14 @@ const loadFollowLists = async (userId: string) => {
       loadFollowLists(profile._id);
     }
   }, [profile]);
+
+  // open followers modal
+  const openFollowersModal = () => setShowFollowersModal(true);
+  const closeFollowersModal = () => setShowFollowersModal(false);
+
+  // open following modal
+  const openFollowingModal = () => setShowFollowingModal(true);
+  const closeFollowingModal = () => setShowFollowingModal(false);
 
   // Clear selected profile once component unmounts
   useEffect(() => {
@@ -587,7 +624,7 @@ const loadFollowLists = async (userId: string) => {
                       {profile.aboutMe || 'No bio provided'}
                     </p>
                   </div>
-                      {viewingOther ? (
+                      {profile && user && profile._id !== (user._id || user.id) ? (
                         <div className="flex gap-3">
                           {isFollowing ? (
                             <Button
@@ -684,12 +721,79 @@ const loadFollowLists = async (userId: string) => {
                     {stat.change}
                   </Badge>
                 </div>
-                <div className="text-3xl text-white mb-1">{stat.value}</div>
+                <div className="text-3xl text-white mb-1">
+                  {stat.label === 'Followers' ? (
+                    <button onClick={openFollowersModal} className="text-white hover:underline">{stat.value}</button>
+                  ) : stat.label === 'Following' ? (
+                    <button onClick={openFollowingModal} className="text-white hover:underline">{stat.value}</button>
+                  ) : (
+                    stat.value
+                  )}
+                </div>
                 <div className="text-sm text-gray-400">{stat.label}</div>
               </motion.div>
             );
           })}
         </div>
+
+        {/* Followers / Following Modals */}
+        {showFollowersModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl w-11/12 max-w-2xl p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold">Followers ({followersCount})</h3>
+                <button onClick={closeFollowersModal} className="text-gray-500">Close</button>
+              </div>
+              <div className="space-y-3 max-h-96 overflow-auto">
+                {followers.length ? followers.map((f: any) => (
+                  <div key={f._id || f.id || JSON.stringify(f)} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-10 h-10">
+                        {f.profileImage ? <AvatarImage src={f.profileImage} /> : <AvatarFallback>{(f.fullName||f.name||'U')[0]}</AvatarFallback>}
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{f.fullName || f.name || f.follower?.name}</div>
+                        <div className="text-sm text-gray-500">{f.email || ''}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <Button size="sm" onClick={() => { try { window.location.href = `/profile/${f._id || f.id || f.follower?.id}` } catch(e){} }}>View Profile</Button>
+                    </div>
+                  </div>
+                )) : <p className="text-gray-500">No followers yet.</p>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showFollowingModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl w-11/12 max-w-2xl p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold">Following ({followingCount})</h3>
+                <button onClick={closeFollowingModal} className="text-gray-500">Close</button>
+              </div>
+              <div className="space-y-3 max-h-96 overflow-auto">
+                {following.length ? following.map((f: any) => (
+                  <div key={f._id || f.id || JSON.stringify(f)} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-10 h-10">
+                        {f.profileImage ? <AvatarImage src={f.profileImage} /> : <AvatarFallback>{(f.fullName||f.name||'U')[0]}</AvatarFallback>}
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{f.fullName || f.name || f.following?.name}</div>
+                        <div className="text-sm text-gray-500">{f.email || ''}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <Button size="sm" onClick={() => { try { window.location.href = `/profile/${f._id || f.id || f.following?.id}` } catch(e){} }}>View Profile</Button>
+                    </div>
+                  </div>
+                )) : <p className="text-gray-500">Not following anyone yet.</p>}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Content Area */}
         <div className="grid lg:grid-cols-3 gap-6">
