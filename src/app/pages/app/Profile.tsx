@@ -30,6 +30,7 @@ import { Separator } from '../../components/ui/separator';
 import { getUserProfile, updateUserProfile } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { toast } from 'react-hot-toast';
+import{ followUser ,getFollowers,getFollowing,unfollowUser } from '../../api/auth.tsx';
 
 type ProfileData = {
   _id: string;
@@ -61,9 +62,114 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
   const [isSaving, setIsSaving] = useState(false);
   const [viewingOther, setViewingOther] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+
+  const [followers, setFollowers] = useState([]);
+const [following, setFollowing] = useState([]);
+const [followersCount, setFollowersCount] = useState(0);
+const [followingCount, setFollowingCount] = useState(0);
   
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+
+
+
+// follow button handler
+const handleFollow = async () => {
+  try {
+    if (!profile) return;
+    await followUser(profile._id);
+    // refresh lists
+    await loadFollowLists(profile._id);
+    // refresh current user's following as well
+    await refreshMyFollowing();
+    setIsFollowing(true);
+    toast.success('Followed successfully');
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+// unfollow handler
+const handleUnfollow = async () => {
+  try {
+    if (!profile) return;
+    await unfollowUser(profile._id);
+    await loadFollowLists(profile._id);
+    // refresh current user's following as well
+    await refreshMyFollowing();
+    setIsFollowing(false);
+    toast.success('Unfollowed successfully');
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+// Refresh the current authenticated user's following list and update AuthContext
+const refreshMyFollowing = async () => {
+  try {
+    const currentUserId = (user && (user._id || user.id)) || null;
+    if (!currentUserId) return;
+    const myFollowingResp = await getFollowing(currentUserId);
+    let myFollowingList: any[] = [];
+    if (Array.isArray(myFollowingResp)) myFollowingList = myFollowingResp;
+    else if (Array.isArray(myFollowingResp.following)) myFollowingList = myFollowingResp.following;
+    else if (Array.isArray(myFollowingResp.data)) myFollowingList = myFollowingResp.data;
+
+    // update auth context user object and localStorage
+    try {
+      const updatedUser = {
+        ...(user || {}),
+        following: myFollowingList,
+        followingCount: myFollowingList.length,
+      };
+      login({ token: token || '', user: updatedUser });
+    } catch (e) {
+      console.warn('Failed to update auth context with following list', e);
+    }
+  } catch (e) {
+    console.error('Failed to refresh my following list', e);
+  }
+};
+
+// load followers & following lists
+const loadFollowLists = async (userId: string) => {
+  try {
+    const fResp = await getFollowers(userId);
+    let fList: any[] = [];
+    if (Array.isArray(fResp)) fList = fResp;
+    else if (Array.isArray(fResp.followers)) fList = fResp.followers;
+    else if (Array.isArray(fResp.data)) fList = fResp.data;
+
+    const foResp = await getFollowing(userId);
+    let foList: any[] = [];
+    if (Array.isArray(foResp)) foList = foResp;
+    else if (Array.isArray(foResp.following)) foList = foResp.following;
+    else if (Array.isArray(foResp.data)) foList = foResp.data;
+
+    setFollowers(fList);
+    setFollowing(foList);
+    setFollowersCount(fList.length);
+    setFollowingCount(foList.length);
+
+    // determine if current user is following this profile
+    const currentUserId = (user && (user._id || user.id)) || null;
+    if (currentUserId) {
+      const followingMe = fList.some((x: any) => x._id === currentUserId || x.id === currentUserId || x.userId === currentUserId);
+      setIsFollowing(followingMe);
+    }
+  } catch (e) {
+    console.error('Failed to load follow lists', e);
+  }
+};
+
+
+
+
+
+
+
+
 
   // Fetch profile data
   useEffect(() => {
@@ -135,6 +241,13 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
 
     fetchData();
   }, []);
+
+  // load followers/following when profile is available
+  useEffect(() => {
+    if (profile && profile._id) {
+      loadFollowLists(profile._id);
+    }
+  }, [profile]);
 
   // Clear selected profile once component unmounts
   useEffect(() => {
@@ -343,8 +456,8 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
 
   const stats = [
     { label: 'Posts', value: '127', icon: MessageCircle, change: '+12%' },
-    { label: 'Followers', value: '1,234', icon: Users, change: '+8%' },
-    { label: 'Following', value: '389', icon: Heart, change: '+3%' },
+    { label: 'Followers', value: String(followersCount), icon: Users, change: '+8%' },
+    { label: 'Following', value: String(followingCount), icon: Heart, change: '+3%' },
     { label: 'Engagement', value: '94%', icon: TrendingUp, change: '+5%' },
   ];
 
@@ -476,26 +589,23 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
                   </div>
                       {viewingOther ? (
                         <div className="flex gap-3">
-                          <Button
-                            className={`bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0 lg:mt-0 ${isFollowing ? 'opacity-80' : ''}`}
-                            onClick={() => {
-                              const next = !isFollowing;
-                              setIsFollowing(next);
-                              try {
-                                const key = 'ethica-following';
-                                const raw = localStorage.getItem(key);
-                                let arr: string[] = raw ? JSON.parse(raw) : [];
-                                const id = profile?._id ? String(profile._id) : '';
-                                if (!id) return;
-                                if (next) arr = Array.from(new Set([...arr, id]));
-                                else arr = arr.filter((x) => x !== id);
-                                localStorage.setItem(key, JSON.stringify(arr));
-                              } catch (e) {}
-                            }}
-                            size="sm"
-                          >
-                            {isFollowing ? 'Following' : 'Follow'}
-                          </Button>
+                          {isFollowing ? (
+                            <Button
+                              className="bg-gray-700/60 hover:bg-gray-700/70 border-0 lg:mt-0"
+                              onClick={handleUnfollow}
+                              size="sm"
+                            >
+                              Unfollow
+                            </Button>
+                          ) : (
+                            <Button
+                              className={`bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0 lg:mt-0`}
+                              onClick={handleFollow}
+                              size="sm"
+                            >
+                              Follow
+                            </Button>
+                          )}
 
                           <Button size="sm" variant="outline" onClick={() => {
                             try { localStorage.setItem('ethica-startConversation', JSON.stringify({ id: profile?._id, name: profile?.fullName })); } catch(e) {}
