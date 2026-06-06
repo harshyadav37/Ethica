@@ -1,6 +1,7 @@
-
+"use client";
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import App from "./app/App.tsx";
 import { AuthProvider } from "./app/context/AuthContext.tsx";
 import "./styles/index.css";
@@ -31,7 +32,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
           <div className="max-w-xl text-center">
             <h1 className="text-3xl font-bold mb-4">Something went wrong</h1>
             <p className="text-gray-300 mb-4">
-              An unexpected error occurred while loading the app. Please open the browser console for details.
+              An unexpected error occurred while loading the app.
             </p>
             <pre className="text-left overflow-x-auto bg-slate-900 p-4 rounded-lg text-sm text-rose-200">
               {this.state.error?.message}
@@ -47,9 +48,10 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </BrowserRouter>
   </ErrorBoundary>
 );
-  

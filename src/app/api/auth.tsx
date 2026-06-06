@@ -270,17 +270,3 @@ export const getFollowing = async (userId: string) => {
   );
   return response.data;
 };
-
-// ====================== check follow status (is current logged-in user following target?) ======================
-export const getFollowStatus = async (userId: string) => {
-  const token = localStorage.getItem("token");
-  const response = await axios.get(
-    `${BASE_URL}/api/user/following/${userId}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-  return response.data;
-};

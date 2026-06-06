@@ -8,6 +8,8 @@ import { Badge } from '../../components/ui/badge';
 import MemberList from './MemberList';
 import MemberProfile from './MemberProfile';
 import { joinCommunity as joinCommunityAPI } from '../../api/auth';
+import CommunityMembersModal from '../../components/CommunityMembersModal';
+import { getCommunityMembers } from '../../api/communityService';
 
 interface CommunitiesProps {
   onNavigate?: (page: string) => void;
@@ -34,6 +36,8 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
   const [activeFilter, setActiveFilter] = useState<'All' | 'Joined' | 'Trending' | 'Recommended'>('All');
   const [showMembers, setShowMembers] = useState(false);
   const [activeMembers, setActiveMembers] = useState<any[] | null>(null);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [selectedCommunity, setSelectedCommunity] = useState<any | null>(null);
   const [selectedMember, setSelectedMember] = useState<any | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
@@ -127,6 +131,22 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
       // Optional callback for parent component
       if (onCommunityJoin) {
         onCommunityJoin(response.communityId);
+      }
+
+      // If this community is currently open in the members modal, refresh its members
+      try {
+        const joinedId = response.communityId || idToUse;
+        if (
+          joinedId &&
+          selectedCommunity &&
+          (joinedId === selectedCommunity._id || joinedId === community._id || joinedId === community.id?.toString())
+        ) {
+          const membersResp = await getCommunityMembers(joinedId);
+          const newMembers = Array.isArray(membersResp.members) ? membersResp.members : [];
+          setSelectedCommunity((prev) => (prev ? { ...prev, members: newMembers, membersCount: newMembers.length } : prev));
+        }
+      } catch (e) {
+        console.warn('Failed to refresh members after join', e);
       }
       
       // Show success message
@@ -313,8 +333,8 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setActiveMembers(community.membersData && community.membersData.length ? community.membersData : makeSampleMembers(Math.min(community.members || 0, 12), community.id || index));
-                        setShowMembers(true);
+                        setSelectedCommunity(community);
+                        setIsMembersModalOpen(true);
                       }}
                       className="text-left hover:text-violet-400 transition-colors"
                     >
@@ -398,7 +418,31 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
           </div>
         </div>
         
-        {/* Member list & profile dialogs */}
+        {/* Community Members Modal (fetches members for selected community) */}
+        {/* <CommunityMembersModal
+          open={isMembersModalOpen}
+          onOpenChange={(v: boolean) => {
+            setIsMembersModalOpen(v);
+            if (!v) {
+              setSelectedCommunity(null);
+            }
+          }}
+          community={selectedCommunity}
+        /> */}
+
+        <CommunityMembersModal
+  open={isMembersModalOpen}
+  onOpenChange={(v: boolean) => {
+    setIsMembersModalOpen(v);
+    if (!v) {
+      setSelectedCommunity(null);
+    }
+  }}
+  community={selectedCommunity}
+  onNavigate={onNavigate}
+/>
+
+        {/* Legacy Member list & profile dialogs (kept for local/sample data selection) */}
         {activeMembers && (
           <>
             <MemberList
