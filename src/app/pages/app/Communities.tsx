@@ -354,17 +354,35 @@ export default function Communities({ onNavigate, communities, joinCommunity, op
 
 
                     <Button
-                      className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0"
+                      className={`bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0 ${
+                        community.joined ? 'opacity-60 cursor-default' : ''
+                      }`}
                       onClick={(e) => {
                         e.stopPropagation();
+                        // If already joined, open the community
+                        if (community.joined) {
+                          openCommunity?.(community._id || community.id?.toString() || community.name);
+                          return;
+                        }
+
+                        // Prevent duplicate joins when loading
+                        const loadingId = community._id || community.id?.toString() || community.name;
+                        if (loading === loadingId) return;
+
                         if (joinCommunity) {
                           joinCommunity(community);
                         } else {
                           handleJoin(community._id || community.name || community.id);
                         }
                       }}
+                      disabled={!!community.joined || loading === (community._id || community.id?.toString() || community.name)}
                     >
-                      Join
+                      {loading === (community._id || community.id?.toString() || community.name)
+                        ? 'Joining...'
+                        : community.joined
+                        ? 'Joined'
+                        : 'Join'
+                      }
                     </Button>
                   </div>
                 </div>

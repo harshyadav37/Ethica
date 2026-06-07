@@ -171,8 +171,12 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
   const fetchCounts = async () => {
     try {
       if (!profile?._id) return;
+      // When viewing another user's profile, fetch their followers and who THEY follow.
+      // When viewing own profile, fetch own followers and following.
+      const targetFollowingId = viewingOther ? String(profile._id) : String(currentUserId);
+
       const followersRes = await getFollowers(profile._id);
-      const followingRes = await getFollowing(currentUserId);
+      const followingRes = await getFollowing(targetFollowingId);
 
       const rawFollowers = followersRes?.data ?? (Array.isArray(followersRes) ? followersRes : []);
       const rawFollowing = followingRes?.data ?? (Array.isArray(followingRes) ? followingRes : []);
