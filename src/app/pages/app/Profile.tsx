@@ -172,7 +172,7 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
     try {
       if (!profile?._id) return;
       const followersRes = await getFollowers(profile._id);
-      const followingRes = await getFollowing(profile._id);
+      const followingRes = await getFollowing(currentUserId);
 
       const rawFollowers = followersRes?.data ?? (Array.isArray(followersRes) ? followersRes : []);
       const rawFollowing = followingRes?.data ?? (Array.isArray(followingRes) ? followingRes : []);
@@ -243,6 +243,8 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
 
       // Also refresh the current user's "following" list so their profile shows updates
       try {
+
+     
         if (currentUserId) {
           const myFollowingRes = await getFollowing(currentUserId);
           const rawMyList = myFollowingRes?.data ?? (Array.isArray(myFollowingRes) ? myFollowingRes : []);
