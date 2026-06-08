@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from "react-router-dom";
 import {
   Mail,
   Calendar,
@@ -30,7 +31,7 @@ import { Separator } from '../../components/ui/separator';
 import { getUserProfile, updateUserProfile } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { toast } from 'react-hot-toast';
-import { followUser, unfollowUser, getFollowers, getFollowing } from '../../api/auth';
+import { followUser, unfollowUser, getFollowers, getFollowing ,createConversation} from '../../api/auth';
 
 type ProfileData = {
   _id: string;
@@ -70,6 +71,7 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
   const [followingCount, setFollowingCount] = useState(0);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [showFollowingModal, setShowFollowingModal] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState(null);
 
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -77,6 +79,8 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const currentUserId = currentUser?._id || currentUser?.id;
 
+
+  const navigate = useNavigate();
   // Helper: initials
   const getInitials = (name?: string) => {
     const parts = (name || '').trim().split(' ').filter(Boolean);
@@ -98,6 +102,43 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
       return 'Invalid date';
     }
   };
+// conversation
+
+const handleMessage = async (receiver: any) => {
+  try {
+    // If we have a backend API to create a conversation, call it (best-effort)
+    try {
+      const res = await createConversation(receiver._id || receiver.id || receiver);
+      if (res?.conversation) {
+        setSelectedConversation(res.conversation);
+      }
+    } catch (e) {
+      // ignore API errors - still proceed to open messages UI
+      console.warn('createConversation failed', e);
+    }
+
+    // Prepare a minimal user object for Messages to pick up
+    const starter = {
+      _id: receiver._id || receiver.id || receiver,
+      id: receiver._id || receiver.id || receiver,
+      name: receiver.fullName || receiver.name || 'User',
+      username: receiver.username || '',
+      email: receiver.email || '',
+    };
+    try { localStorage.setItem('ethica-startConversation', JSON.stringify(starter)); } catch (e) {}
+
+    // Prefer parent page navigation if provided (Layout expects this), fallback to router navigate
+    if (onNavigate) {
+      onNavigate('messages');
+    } else {
+      navigate('/messages');
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+
 
   // Fetch profile data (either selected external profile or current user's profile)
   useEffect(() => {
@@ -475,7 +516,7 @@ export default function Profile({ onNavigate }: { onNavigate?: (page: any) => vo
                   {viewingOther ? (
                     <div className="flex gap-3">
                       <Button className={`bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0 lg:mt-0 ${isFollowing ? 'opacity-80' : ''}`} onClick={() => { const id = profile?._id; if (!id) return; if (isFollowing) handleUnfollow(String(id)); else handleFollow(String(id)); }} size="sm">{isFollowing ? 'Unfollow' : 'Follow'}</Button>
-                      <Button size="sm" variant="outline" onClick={() => { try { localStorage.setItem('ethica-startConversation', JSON.stringify({ id: profile?._id, name: profile?.fullName })); } catch(e) {} onNavigate?.('messages'); }}>Message</Button>
+                      <Button size="sm" variant="outline" onClick={() => handleMessage(profile)}>Message</Button>
                     </div>
                   ) : (
                     <Button className="bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 border-0 lg:mt-0" onClick={openEditModal}><Edit className="w-4 h-4 mr-2" /> Edit Profile</Button>

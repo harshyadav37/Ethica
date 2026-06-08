@@ -270,3 +270,69 @@ export const getFollowing = async (userId: string) => {
   );
   return response.data;
 };
+
+// ====================== conversation ======================
+export const createConversation = async (receiverId: string) => {
+  const token = localStorage.getItem("token");
+
+  const response = await axios.post(
+    `${BASE_URL}/api/user/conversation`,
+    { receiverId }, // <-- receiverId hi bhejna hai
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return response.data;
+};
+
+// ====================== get conversations =======================
+export const getConversations = async () => {
+  const token = localStorage.getItem("token");
+  const response = await axios.get(`${BASE_URL}/api/user/getconversation`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return response.data;
+};
+
+
+// ====================== send message =======================
+export const sendMessage = async (conversationId: string, receiverId: string, text: string) => {
+  const token = localStorage.getItem("token");
+
+  const response = await axios.post(
+    `${BASE_URL}/api/user/sendMessage`,
+    { conversationId, receiverId, text },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return response.data;
+};
+
+
+
+// ====================== get messages =======================
+export const getMessages = async (
+  conversationId: string
+) => {
+  const token = localStorage.getItem("token");
+
+  const response = await axios.get(
+    `${BASE_URL}/api/user/getMessage/${conversationId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return response.data;
+};
