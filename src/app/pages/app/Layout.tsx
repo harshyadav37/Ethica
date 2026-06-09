@@ -154,9 +154,22 @@ export default function Layout({ onLogout }: LayoutProps) {
   //   },
   // ];
 
+  // Minimal default communities fallback (was referenced but missing)
+  const defaultCommunities: Community[] = [];
+
+  // Use a per-user localStorage key to avoid sharing joined state across accounts
+  const communitiesStorageKey = (() => {
+    try {
+      const id = (user && (user._id || user.id || user.email)) || 'guest';
+      return `ethica-communities-${id}`;
+    } catch (e) {
+      return 'ethica-communities-guest';
+    }
+  })();
+
   const [communities, setCommunities] = useState<Community[]>(() => {
     try {
-      const stored = localStorage.getItem('ethica-communities');
+      const stored = localStorage.getItem(communitiesStorageKey);
       if (stored) return JSON.parse(stored) as Community[];
     } catch (e) {
       // ignore parse errors
@@ -172,12 +185,33 @@ useEffect(() => {
       // merge server data with any locally stored communities so we don't wipe joined/members
       let stored: Community[] = [];
       try {
-        const raw = localStorage.getItem('ethica-communities');
+        const raw = localStorage.getItem(communitiesStorageKey);
         if (raw) stored = JSON.parse(raw) as Community[];
       } catch (e) {}
 
       const formattedCommunities = response.data.map((community: any, idx: number) => {
         const existing = stored.find((s) => s._id === community._id || s.name === community.name);
+
+        // Determine if current logged-in user is a member of this community
+        const rawMembers = community.members || community.membersData || community.membersList || community.members_users || community.users || [];
+        let isMember = false;
+        try {
+          if (Array.isArray(rawMembers) && user) {
+            isMember = rawMembers.some((m: any) => {
+              const memberId = m._id || m.id || m.userId || m.email || m.emailAddress;
+              if (!memberId) return false;
+              if (user._id && (memberId === user._id || memberId === user.id)) return true;
+              if (user.id && memberId === user.id) return true;
+              if (user.email && memberId === user.email) return true;
+              return false;
+            });
+          }
+          // Fallback to server-provided boolean if available
+          if (!isMember && typeof community.joined === 'boolean') isMember = community.joined;
+        } catch (e) {
+          isMember = existing?.joined ?? false;
+        }
+
         return {
           id: existing?.id ?? idx + 1,
           _id: community._id,
@@ -186,14 +220,14 @@ useEffect(() => {
           category: community.category,
           members: community.membersCount ?? existing?.members ?? 0,
           posts: community.posts?.length ?? existing?.posts ?? 0,
-          joined: existing?.joined ?? false,
+          joined: isMember,
           trending: community.trending ?? existing?.trending ?? false,
           postsData: existing?.postsData ?? [],
         } as Community;
       });
 
       setCommunities(formattedCommunities);
-      try { localStorage.setItem('ethica-communities', JSON.stringify(formattedCommunities)); } catch (e) {}
+      try { localStorage.setItem(communitiesStorageKey, JSON.stringify(formattedCommunities)); } catch (e) {}
     } catch (error) {
       console.error("Fetch Communities Error:", error);
     }
@@ -208,12 +242,32 @@ useEffect(() => {
       const response = await getCommunities();
       let stored: Community[] = [];
       try {
-        const raw = localStorage.getItem('ethica-communities');
+        const raw = localStorage.getItem(communitiesStorageKey);
         if (raw) stored = JSON.parse(raw) as Community[];
       } catch (e) {}
 
       const formattedCommunities = response.data.map((community: any, idx: number) => {
         const existing = stored.find((s) => s._id === community._id || s.name === community.name);
+
+        // Determine membership for current user similar to initial load
+        const rawMembers = community.members || community.membersData || community.membersList || community.members_users || community.users || [];
+        let isMember = false;
+        try {
+          if (Array.isArray(rawMembers) && user) {
+            isMember = rawMembers.some((m: any) => {
+              const memberId = m._id || m.id || m.userId || m.email || m.emailAddress;
+              if (!memberId) return false;
+              if (user._id && (memberId === user._id || memberId === user.id)) return true;
+              if (user.id && memberId === user.id) return true;
+              if (user.email && memberId === user.email) return true;
+              return false;
+            });
+          }
+          if (!isMember && typeof community.joined === 'boolean') isMember = community.joined;
+        } catch (e) {
+          isMember = existing?.joined ?? false;
+        }
+
         return {
           id: existing?.id ?? idx + 1,
           _id: community._id,
@@ -222,14 +276,14 @@ useEffect(() => {
           category: community.category,
           members: community.membersCount ?? existing?.members ?? 0,
           posts: community.posts?.length ?? existing?.posts ?? 0,
-          joined: existing?.joined ?? false,
+          joined: isMember,
           trending: community.trending ?? existing?.trending ?? false,
           postsData: existing?.postsData ?? [],
         } as Community;
       });
 
       setCommunities(formattedCommunities);
-      try { localStorage.setItem('ethica-communities', JSON.stringify(formattedCommunities)); } catch (e) {}
+      try { localStorage.setItem(communitiesStorageKey, JSON.stringify(formattedCommunities)); } catch (e) {}
     } catch (err) {
       console.error('Failed to refresh communities from server', err);
     }
@@ -252,7 +306,7 @@ useEffect(() => {
       };
       const updated = [newCommunity, ...prev];
       try {
-        localStorage.setItem('ethica-communities', JSON.stringify(updated));
+        localStorage.setItem(communitiesStorageKey, JSON.stringify(updated));
       } catch (e) {
         // ignore
       }
@@ -334,7 +388,7 @@ const joinCommunity = async (communityOrId: any) => {
                 ? { ...c, _id: newId }
                 : c
             );
-            try { localStorage.setItem('ethica-communities', JSON.stringify(updated)); } catch (e) {}
+            try { localStorage.setItem(communitiesStorageKey, JSON.stringify(updated)); } catch (e) {}
             return updated;
           });
           // assign identifier so we can join next
@@ -360,7 +414,7 @@ const joinCommunity = async (communityOrId: any) => {
             : c
         );
         try {
-          localStorage.setItem('ethica-communities', JSON.stringify(updated));
+          localStorage.setItem(communitiesStorageKey, JSON.stringify(updated));
         } catch (e) {}
         return updated;
       });
@@ -376,7 +430,7 @@ const joinCommunity = async (communityOrId: any) => {
             : c
         );
         try {
-          localStorage.setItem('ethica-communities', JSON.stringify(updated));
+          localStorage.setItem(communitiesStorageKey, JSON.stringify(updated));
         } catch (e) {}
         return updated;
       });
@@ -415,7 +469,7 @@ const joinCommunity = async (communityOrId: any) => {
         };
       });
       try {
-        localStorage.setItem('ethica-communities', JSON.stringify(updated));
+        localStorage.setItem(communitiesStorageKey, JSON.stringify(updated));
       } catch (e) {}
       return updated;
     });
@@ -434,7 +488,7 @@ const joinCommunity = async (communityOrId: any) => {
         return { ...c, postsData: posts };
       });
       try {
-        localStorage.setItem('ethica-communities', JSON.stringify(updated));
+        localStorage.setItem(communitiesStorageKey, JSON.stringify(updated));
       } catch (e) {}
       return updated;
     });
@@ -453,7 +507,7 @@ const joinCommunity = async (communityOrId: any) => {
         return { ...c, postsData: posts };
       });
       try {
-        localStorage.setItem('ethica-communities', JSON.stringify(updated));
+        localStorage.setItem(communitiesStorageKey, JSON.stringify(updated));
       } catch (e) {}
       return updated;
     });
@@ -470,7 +524,7 @@ const joinCommunity = async (communityOrId: any) => {
         return { ...c, postsData: posts };
       });
       try {
-        localStorage.setItem('ethica-communities', JSON.stringify(updated));
+        localStorage.setItem(communitiesStorageKey, JSON.stringify(updated));
       } catch (e) {}
       return updated;
     });
@@ -503,7 +557,7 @@ const joinCommunity = async (communityOrId: any) => {
               : c
           );
           try {
-            localStorage.setItem('ethica-communities', JSON.stringify(updated));
+            localStorage.setItem(communitiesStorageKey, JSON.stringify(updated));
           } catch (e) {}
           return updated;
         });
@@ -517,7 +571,7 @@ const joinCommunity = async (communityOrId: any) => {
               : c
           );
           try {
-            localStorage.setItem('ethica-communities', JSON.stringify(updated));
+            localStorage.setItem(communitiesStorageKey, JSON.stringify(updated));
           } catch (e) {}
           return updated;
         });
