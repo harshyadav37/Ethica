@@ -1,8 +1,10 @@
 "use client";
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import App from "./app/App.tsx";
+import VideoCallid from "./app/pages/app/videocallid/page";
+import VideoCallRoom from "./app/pages/app/videocallroom/page";
 import { AuthProvider } from "./app/context/AuthContext.tsx";
 import "./styles/index.css";
 
@@ -50,7 +52,11 @@ createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
     <BrowserRouter>
       <AuthProvider>
-        <App />
+        <Routes>
+          <Route path="/videocallid" element={<VideoCallid />} />
+          <Route path="/videocallroom/:roomId" element={<VideoCallRoom />} />
+          <Route path="/*" element={<App />} />
+        </Routes>
       </AuthProvider>
     </BrowserRouter>
   </ErrorBoundary>

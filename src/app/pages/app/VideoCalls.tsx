@@ -1,3 +1,4 @@
+"use client";
 import { motion } from 'motion/react';
 import {
   Video,
@@ -12,8 +13,10 @@ import {
 import { Button } from '../../components/ui/button';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import { Badge } from '../../components/ui/badge';
+import { useNavigate } from "react-router-dom";
 
 export default function VideoCalls() {
+  const navigate = useNavigate();
   const upcomingCalls = [
     {
       id: 1,
@@ -85,6 +88,7 @@ export default function VideoCalls() {
           <motion.button
             whileHover={{ y: -4 }}
             whileTap={{ scale: 0.98 }}
+          onClick={() =>navigate('/videocallid')}
             className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-violet-500/30 transition-all text-left"
           >
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center mb-4">
